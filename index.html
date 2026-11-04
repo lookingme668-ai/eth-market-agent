@@ -418,6 +418,13 @@ if(lastCrossIndex>=0){
 
   barsSinceCross=(candles4h.length-1-lastCrossIndex)+'根4小时K线';
 }
+    let daysSinceCross='暂无记录';
+
+if(lastCrossIndex>=0){
+  daysSinceCross=Math.floor(
+    (Date.now()-candles4h[lastCrossIndex].time*1000)/86400000
+  )+'天';
+}
 const rv4h=rsi(closes4h);
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
@@ -462,6 +469,7 @@ $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'�
     lines.push('最近一次历史交叉：'+lastCrossType+'。');
 lines.push('最近一次交叉时间：'+lastCrossTime+'。');
 lines.push('交叉后经过：'+barsSinceCross+'。');
+    lines.push('最近一次交叉距今：'+daysSinceCross+'。');
 lines.push('4小时均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。'));
 lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
 lines.push('4小时 MACD 柱体 '+(m4h.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
