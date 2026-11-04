@@ -258,7 +258,56 @@ function draw(c){
   ctx.strokeStyle='#7aa7ff';ctx.lineWidth=2.5;ctx.stroke();
   ctx.fillStyle='#91a0ba';ctx.font='13px system-ui';ctx.fillText(fmt(max),8,15);ctx.fillText(fmt(min),8,h-5);
 }
-function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
+function draw4h(candles){
+  const el=$('chart4h');
+  if(!el||candles.length===0)return;
+  const ctx=el.getContext('2d'),w=el.width,h=el.height;
+  ctx.clearRect(0,0,w,h);
+
+  const pad=30;
+  const min=Math.min(...candles.map(x=>x.low));
+  const max=Math.max(...candles.map(x=>x.high));
+  const range=max-min||1;
+  const y=v=>pad+(max-v)/range*(h-2*pad);
+
+  ctx.strokeStyle='#26324a';
+  ctx.lineWidth=1;
+  for(let i=0;i<5;i++){
+    const yy=pad+i*(h-2*pad)/4;
+    ctx.beginPath();
+    ctx.moveTo(0,yy);
+    ctx.lineTo(w,yy);
+    ctx.stroke();
+  }
+
+  const step=w/candles.length;
+  const bodyWidth=Math.max(2,step*0.65);
+
+  candles.forEach((c,i)=>{
+    const x=step*(i+0.5);
+    const up=c.close>=c.open;
+    const color=up?'#26a69a':'#ef5350';
+
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.lineWidth=1;
+
+    ctx.beginPath();
+    ctx.moveTo(x,y(c.high));
+    ctx.lineTo(x,y(c.low));
+    ctx.stroke();
+
+    const top=y(Math.max(c.open,c.close));
+    const bottom=y(Math.min(c.open,c.close));
+    ctx.fillRect(x-bodyWidth/2,top,bodyWidth,Math.max(1,bottom-top));
+  });
+
+  ctx.fillStyle='#91a0ba';
+  ctx.font='13px system-ui';
+  ctx.fillText(fmt(max),8,16);
+  ctx.fillText(fmt(min),8,h-5);
+}
+  function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
 
 async function refresh(){
   $('status').textContent='正在更新…';$('dot').className='dot';
@@ -313,6 +362,7 @@ $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'�
     $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
     $('support').textContent=moneyOrNA(p.support);$('resistance').textContent=moneyOrNA(p.resistance);
     draw(c.slice(-168));
+    draw4h(candles4h.slice(-180));
     let lines=[];
     lines.push('4小时趋势（基于已完成的4小时K线）：'+trend+'。'+strong+'。');
 lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
