@@ -272,6 +272,8 @@ const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1
 
 const historicalHourly=await getHistoricalHourlyCandles(60);
 const candles4h=aggregate4h(historicalHourly);
+    console.log('历史1小时K线数量：',historicalHourly.length);
+console.log('历史4小时K线数量：',candles4h.length);
 if(candles4h.length<50)throw new Error('4小时K线数量不足，暂时无法可靠计算4小时指标');
 
 const closes4h=candles4h.map(x=>x.close);
