@@ -479,6 +479,7 @@ if(lastCrossIndex>=0 && Number.isFinite(price)){
   }
 }
 const rv4h=rsi(closes4h);
+const prevRv4h=rsi(closes4h.slice(0,-1));
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
     // 获取上一根4小时K线的EMA数值
@@ -524,7 +525,7 @@ lines.push('【一、4小时市场趋势】');
 lines.push(
   '趋势判断：'+trend+'。'+strong+'\n'+
   '均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。')+'\n'+
-  'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'。'+(rv4h>=70?'短线偏热，注意回调。':rv4h<=30?'短线偏弱，等待止跌。':'动能处于中间区域。')+'\n'+
+  'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+(rv4h<30?'明显偏弱，处于超卖区域，等待止跌确认。':rv4h<45?'偏弱，空头动能仍占优势。':rv4h<=55?'中性震荡，多空暂未明显占优。':rv4h<70?'偏强，多头动能占优。':'强势但偏热，注意短线回撤风险。')+(Number.isFinite(prevRv4h)?(rv4h-prevRv4h>1?' 较上一根已完成4小时K线增强。':rv4h-prevRv4h< -1?' 较上一根已完成4小时K线减弱。':' 与上一根已完成4小时K线相比变化不大。'):''):'数据不足，暂无法判断。')+'\n'+
   'MACD：'+(m4h.hist>=0?'柱体为正，动能偏向上行。':'柱体为负，动能偏向下行。')
 );
 
