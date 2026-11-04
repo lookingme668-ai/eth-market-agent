@@ -98,7 +98,55 @@ async function getJSON(url){
   if(!r.ok) throw new Error('行情接口返回 '+r.status);
   return r.json();
 }
-function ema(a,p){
+let historicalHourlyCache=null;
+let historicalHourlyPromise=null;
+
+async function getHistoricalHourlyCandles(days=60){
+  if(historicalHourlyCache)return historicalHourlyCache;
+  if(historicalHourlyPromise)return historicalHourlyPromise;
+
+  historicalHourlyPromise=(async()=>{
+    const nowSec=Math.floor(Date.now()/1000);
+    const endSec=Math.floor(nowSec/3600)*3600;
+    const startSec=endSec-days*86400;
+    const byTime=new Map();
+    const chunkSeconds=299*3600;
+
+    for(let from=startSec;from<endSec;){
+      const to=Math.min(from+chunkSeconds,endSec);
+
+      const url=API+'/products/ETH-USD/candles?granularity=3600&start='
+        +encodeURIComponent(new Date(from*1000).toISOString())
+        +'&end='
+        +encodeURIComponent(new Date(to*1000).toISOString());
+
+      const rows=await getJSON(url);
+
+      for(const x of rows){
+        byTime.set(x[0],{
+          time:x[0],
+          low:+x[1],
+          high:+x[2],
+          open:+x[3],
+          close:+x[4],
+          volume:+x[5]
+        });
+      }
+
+      from=to+3600;
+    }
+
+    return [...byTime.values()].sort((a,b)=>a.time-b.time);
+  })();
+
+  try{
+    historicalHourlyCache=await historicalHourlyPromise;
+    return historicalHourlyCache;
+  }finally{
+    historicalHourlyPromise=null;
+  }
+}
+  function ema(a,p){
   if(a.length<p)return NaN;
   const k=2/(p+1);let v=a.slice(0,p).reduce((x,y)=>x+y,0)/p;
   for(let i=p;i<a.length;i++)v=a[i]*k+v*(1-k);
@@ -112,11 +160,47 @@ function rsi(a,p=14){
   for(let i=p+1;i<a.length;i++){let d=a[i]-a[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;}
   return l===0?100:100-100/(1+g/l);
 }
+function emaSeries(a,p){
+  const result=Array(a.length).fill(NaN);
+  if(a.length<p)return result;
+
+  const k=2/(p+1);
+  let value=a.slice(0,p).reduce((sum,x)=>sum+x,0)/p;
+  result[p-1]=value;
+
+  for(let i=p;i<a.length;i++){
+    value=a[i]*k+value*(1-k);
+    result[i]=value;
+  }
+
+  return result;
+}
+
 function macd(a){
-  const fast=[],slow=[];
-  for(let i=0;i<a.length;i++){fast.push(ema(a.slice(0,i+1),12));slow.push(ema(a.slice(0,i+1),26));}
-  const line=fast.map((v,i)=>v-slow[i]).filter(Number.isFinite);
-  const sig=ema(line,9);return {line:line.at(-1),signal:sig,hist:line.at(-1)-sig};
+  if(a.length<35){
+    return {line:NaN,signal:NaN,hist:NaN};
+  }
+
+  const fast=emaSeries(a,12);
+  const slow=emaSeries(a,26);
+
+  const line=Array(a.length).fill(NaN);
+
+  for(let i=25;i<a.length;i++){
+    line[i]=fast[i]-slow[i];
+  }
+
+  const validLine=line.slice(25);
+  const signalValues=emaSeries(validLine,9);
+
+  const lastLine=validLine[validLine.length-1];
+  const lastSignal=signalValues[signalValues.length-1];
+
+  return {
+    line:lastLine,
+    signal:lastSignal,
+    hist:lastLine-lastSignal
+  };
 }
 function aggregate4h(hourly){
   const groups=new Map();
@@ -177,7 +261,7 @@ async function refresh(){
     const [ticker,stats,raw]=await Promise.all([
   getJSON(API+'/products/ETH-USD/ticker'),
   getJSON(API+'/products/ETH-USD/stats'),
-  getJSON(API+'/products/ETH-USD/candles?granularity=3600')
+  getHistoricalHourlyCandles(60)
 ]);
 const price=Number(ticker.price),open=Number(stats.open),vol=Number(stats.volume);
 const high=Number(stats.high),low=Number(stats.low);
@@ -186,7 +270,8 @@ const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1
     const c=raw.map(x=>({time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4],volume:+x[5]})).sort((a,b)=>a.time-b.time);
     const closes=c.map(x=>x.close),e20=ema(closes,20),e50=ema(closes,50),e200=ema(closes,200),rv=rsi(closes),m=macd(closes),p=pivots(c);
 
-const candles4h=aggregate4h(c);
+const historicalHourly=await getHistoricalHourlyCandles(60);
+const candles4h=aggregate4h(historicalHourly);
 if(candles4h.length<50)throw new Error('4小时K线数量不足，暂时无法可靠计算4小时指标');
 
 const closes4h=candles4h.map(x=>x.close);
