@@ -496,14 +496,80 @@ if(prevE20_4h<=prevE50_4h && e20_4h>e50_4h){
   cross4h='4小时EMA死叉';
 }
 
-const trend=close4h>e20_4h&&e20_4h>e50_4h?'偏多':close4h<e20_4h&&e20_4h<e50_4h?'偏空':'震荡 / 等待确认';
-const strong=close4h>e20_4h&&e20_4h>e50_4h&&m4h.hist>0?'4小时多头结构较强':close4h<e20_4h&&e20_4h<e50_4h&&m4h.hist<0?'4小时空头结构较强':'4小时均线或 MACD 尚未形成一致方向';
+// 计算上一根已完成4小时K线的MACD，用于判断柱体动能变化
+const prevM4h=macd(closes4h.slice(0,-1));
+
+// 三项指标分别投票：EMA判断趋势结构，RSI判断多空动能，MACD判断动能方向
+const emaVote=close4h>e20_4h&&e20_4h>e50_4h?1:close4h<e20_4h&&e20_4h<e50_4h?-1:0;
+const rsiVote=Number.isFinite(rv4h)?(rv4h>55?1:rv4h<45?-1:0):0;
+const macdVote=Number.isFinite(m4h.hist)?(m4h.hist>0?1:m4h.hist<0?-1:0):0;
+const votes=[emaVote,rsiVote,macdVote];
+const bullVotes=votes.filter(v=>v===1).length;
+const bearVotes=votes.filter(v=>v===-1).length;
+
+let trend='震荡 / 等待确认';
+if(bullVotes===3)trend='强势偏多';
+else if(bearVotes===3)trend='强势偏空';
+else if(bullVotes>=2)trend='偏多';
+else if(bearVotes>=2)trend='偏空';
+
+const strong=trend==='强势偏多'?'EMA、RSI与MACD三项一致偏多':
+  trend==='强势偏空'?'EMA、RSI与MACD三项一致偏空':
+  trend==='偏多'?'多数指标支持偏多，仍需留意指标分歧':
+  trend==='偏空'?'多数指标支持偏空，仍需留意指标分歧':
+  '三项指标暂未形成明确多数方向';
+
+const emaText=emaVote===1?'多头排列，收盘价位于EMA20上方，趋势偏多。':
+  emaVote===-1?'空头排列，收盘价位于EMA20下方，趋势偏空。':
+  '价格与EMA20/EMA50排列尚未形成一致方向。';
+
+const rsiText=!Number.isFinite(rv4h)?'数据不足，暂无法判断。':
+  rv4h<30?'明显偏弱，处于超卖区域，留意潜在反弹。':
+  rv4h<45?'偏弱，空头动能占优。':
+  rv4h<=55?'处于中性区域，多空动能暂不明显。':
+  rv4h<70?'偏强，多头动能占优。':
+  '多头动能强，但已偏热，注意短线回撤风险。';
+
+const rsiChangeText=Number.isFinite(prevRv4h)?
+  (rv4h-prevRv4h>1?'较上一根已完成4小时K线增强。':
+   rv4h-prevRv4h< -1?'较上一根已完成4小时K线减弱。':
+   '较上一根已完成4小时K线变化不大。'):'';
+
+let macdText='数据不足，暂无法判断。';
+if(Number.isFinite(m4h.hist)){
+  const macdDirection=m4h.hist>0?'柱体为正，多头动能占优。':
+    m4h.hist<0?'柱体为负，空头动能占优。':'柱体接近零，多空动能暂不明显。';
+  let macdMomentum='';
+  if(Number.isFinite(prevM4h.hist)){
+    if(m4h.hist>0){
+      macdMomentum=m4h.hist>prevM4h.hist?'柱体扩大，动能增强。':
+        m4h.hist<prevM4h.hist?'柱体收缩，动能减弱。':'柱体变化不大。';
+    }else if(m4h.hist<0){
+      macdMomentum=m4h.hist<prevM4h.hist?'负柱扩大，空头动能增强。':
+        m4h.hist>prevM4h.hist?'负柱收缩，空头动能减弱。':'柱体变化不大。';
+    }else{
+      macdMomentum='动能接近零轴，等待方向确认。';
+    }
+  }
+  macdText=macdDirection+(macdMomentum?' '+macdMomentum:'');
+}
+
+let consensusText='';
+if(trend==='强势偏多'||trend==='强势偏空'){
+  consensusText='三项指标方向一致，当前信号一致性较高，但仍需结合价格收盘确认。';
+}else if(trend==='偏多'){
+  consensusText=(votes.includes(-1)?'整体偏多，但有指标出现反向信号，留意多空分歧。':'整体偏多，等待后续指标进一步确认。');
+}else if(trend==='偏空'){
+  consensusText=(votes.includes(1)?'整体偏空，但有指标出现反向信号，留意反弹或分歧。':'整体偏空，等待后续指标进一步确认。');
+}else{
+  consensusText='指标方向分散或处于中性区域，暂不宜强行判断方向。';
+}
     
     
     $('price').textContent=fmt(price);$('updated').textContent='更新时间：'+new Date().toLocaleString();
     $('change').textContent=Number.isFinite(change)?pct(change):'暂不可用';$('change').className='v '+(Number.isFinite(change)?(change>=0?'green':'red'):'amber');
     $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
-    $('trend').textContent=trend;$('trend').className='v '+(trend==='偏多'?'green':trend==='偏空'?'red':'amber');
+    $('trend').textContent=trend;$('trend').className='v '+(trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
     $('trendWhy').textContent=strong;
     $('rsi').textContent=Number.isFinite(rv)?rv.toFixed(1):'—';
     $('rsiHint').textContent=rv>=70?'偏热，留意回调':rv<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
@@ -523,10 +589,11 @@ $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'�
 // 一、4小时市场趋势
 lines.push('【一、4小时市场趋势】');
 lines.push(
-  '趋势判断：'+trend+'。'+strong+'\n'+
-  '均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。')+'\n'+
-  'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+(rv4h<30?'明显偏弱，处于超卖区域，等待止跌确认。':rv4h<45?'偏弱，空头动能仍占优势。':rv4h<=55?'中性震荡，多空暂未明显占优。':rv4h<70?'偏强，多头动能占优。':'强势但偏热，注意短线回撤风险。')+(Number.isFinite(prevRv4h)?(rv4h-prevRv4h>1?' 较上一根已完成4小时K线增强。':rv4h-prevRv4h< -1?' 较上一根已完成4小时K线减弱。':' 与上一根已完成4小时K线相比变化不大。'):''):'数据不足，暂无法判断。')+'\n'+
-  'MACD：'+(m4h.hist>=0?'柱体为正，动能偏向上行。':'柱体为负，动能偏向下行。')
+  '综合趋势：'+trend+'。'+strong+'。'+'\\n'+
+  'EMA结构：'+emaText+'\\n'+
+  'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+rsiText+(rsiChangeText?' '+rsiChangeText:''):rsiText)+'\\n'+
+  'MACD：'+macdText+'\\n'+
+  '综合解读：'+consensusText
 );
 
 // 二、最近一次EMA交叉
