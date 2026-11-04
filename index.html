@@ -54,6 +54,11 @@ canvas{width:100%;height:240px;display:block}
         <tr><td>EMA 50（1小时）</td><td id="ema50">—</td></tr>
         <tr><td>EMA 200（1小时）</td><td id="ema200">—</td></tr>
         <tr><td>MACD（12,26,9）</td><td id="macd">—</td></tr>
+        <tr><td colspan="2" style="padding-top:14px;color:#91a0ba">4小时指标</td></tr>
+<tr><td>EMA 20（4小时）</td><td id="ema20_4h">—</td></tr>
+<tr><td>EMA 50（4小时）</td><td id="ema50_4h">—</td></tr>
+<tr><td>RSI 14（4小时）</td><td id="rsi4h">—</td></tr>
+<tr><td>MACD（4小时）</td><td id="macd4h">—</td></tr>
         <tr><td>24小时成交量</td><td id="volume">—</td></tr>
       </table>
       <p class="small">指标基于最近可获取的 Coinbase 1小时 K线计算，可能与其他交易所略有差异。</p>
@@ -113,7 +118,39 @@ function macd(a){
   const line=fast.map((v,i)=>v-slow[i]).filter(Number.isFinite);
   const sig=ema(line,9);return {line:line.at(-1),signal:sig,hist:line.at(-1)-sig};
 }
-function pivots(candles){
+function aggregate4h(hourly){
+  const groups=new Map();
+
+  for(const candle of hourly){
+    const start=Math.floor(candle.time/14400)*14400;
+
+    if(!groups.has(start))groups.set(start,[]);
+    groups.get(start).push(candle);
+  }
+
+  const currentBucket=Math.floor(Date.now()/14400000)*14400;
+
+  return [...groups.entries()]
+    .filter(([start,items])=>{
+      if(start>=currentBucket)return false;
+      if(items.length!==4)return false;
+
+      items.sort((a,b)=>a.time-b.time);
+
+      return items.every((item,i)=>
+        item.time===start+i*3600
+      );
+    })
+    .map(([time,items])=>({
+      time,
+      open:items[0].open,
+      close:items[3].close,
+      high:Math.max(...items.map(x=>x.high)),
+      low:Math.min(...items.map(x=>x.low)),
+      volume:items.reduce((sum,x)=>sum+x.volume,0)
+    }));
+}
+  function pivots(candles){
   const lows=[],highs=[];
   for(let i=2;i<candles.length-2;i++){
     const c=candles[i];
@@ -148,6 +185,19 @@ const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1
     // Coinbase candles: [time, low, high, open, close, volume], newest first
     const c=raw.map(x=>({time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4],volume:+x[5]})).sort((a,b)=>a.time-b.time);
     const closes=c.map(x=>x.close),e20=ema(closes,20),e50=ema(closes,50),e200=ema(closes,200),rv=rsi(closes),m=macd(closes),p=pivots(c);
+
+const candles4h=aggregate4h(c);
+if(candles4h.length<50)throw new Error('4小时K线数量不足，暂时无法可靠计算4小时指标');
+
+const closes4h=candles4h.map(x=>x.close);
+const e20_4h=ema(closes4h,20);
+const e50_4h=ema(closes4h,50);
+const rv4h=rsi(closes4h);
+const m4h=macd(closes4h);
+const close4h=closes4h[closes4h.length-1];
+
+const trend=close4h>e20_4h&&e20_4h>e50_4h?'偏多':close4h<e20_4h&&e20_4h<e50_4h?'偏空':'震荡 / 等待确认';
+const strong=close4h>e20_4h&&e20_4h>e50_4h&&m4h.hist>0?'4小时多头结构较强':close4h<e20_4h&&e20_4h<e50_4h&&m4h.hist<0?'4小时空头结构较强':'4小时均线或 MACD 尚未形成一致方向';
     const trend=price>e20&&e20>e50?'偏多':price<e20&&e20<e50?'偏空':'震荡 / 等待确认';
     const strong=price>e20&&e20>e50&&m.hist>0?'多头结构较强':price<e20&&e20<e50&&m.hist<0?'空头结构较强':'均线或 MACD 尚未形成一致方向';
     $('price').textContent=fmt(price);$('updated').textContent='更新时间：'+new Date().toLocaleString();
@@ -159,11 +209,19 @@ const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1
     $('rsiHint').textContent=rv>=70?'偏热，留意回调':rv<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
     $('ema20').textContent=moneyOrNA(e20);$('ema50').textContent=moneyOrNA(e50);$('ema200').textContent=moneyOrNA(e200);
     $('macd').textContent=Number.isFinite(m.hist)?(m.hist>=0?'柱体为正':'柱体为负')+'（'+m.hist.toFixed(3)+'）':'—';
+    $('ema20_4h').textContent=Number.isFinite(e20_4h)?fmt(e20_4h):'—';
+$('ema50_4h').textContent=Number.isFinite(e50_4h)?fmt(e50_4h):'—';
+$('rsi4h').textContent=Number.isFinite(rv4h)?rv4h.toFixed(1):'—';
+$('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'柱体为负')+'（'+m4h.hist.toFixed(3)+'）':'—';
     $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
     $('support').textContent=moneyOrNA(p.support);$('resistance').textContent=moneyOrNA(p.resistance);
     draw(c.slice(-168));
     let lines=[];
-    lines.push('4小时级别以当前1小时均线结构作近似观察：'+trend+'。'+strong+'。');
+    lines.push('4小时趋势（基于已完成的4小时K线）：'+trend+'。'+strong+'。');
+lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
+lines.push('4小时 MACD 柱体 '+(m4h.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
+lines.push('1小时 RSI(14) '+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'。');
+lines.push('1小时 MACD 柱体 '+(m.hist>=0?'为正。':'为负。'));
     lines.push('RSI(14) '+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'：'+(rv>=70?'短线偏热，避免仅因上涨追入。':rv<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
     lines.push('MACD 柱体 '+(m.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
     lines.push('多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。');
