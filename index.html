@@ -517,28 +517,54 @@ $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'�
     draw(c.slice(-168));
     draw4h(candles4h.slice(-180));
     let lines=[];
-    lines.push('4小时趋势（基于已完成的4小时K线）：'+trend+'。'+strong+'。');
-    lines.push('4小时EMA交叉信号：'+cross4h+'。');
-    lines.push('最近一次历史交叉：'+lastCrossType+'。');
-lines.push('最近一次交叉时间：'+lastCrossTime+'。');
-lines.push('交叉后经过：'+barsSinceCross+'。');
-    lines.push('最近一次交叉距今：'+daysSinceCross+'。');
-    lines.push('交叉后累计涨跌幅：'+changeSinceCross+'。');
-    lines.push('交叉后最高价：'+highestSinceCross+'。');
-lines.push('交叉后最低价：'+lowestSinceCross+'。');
-lines.push('交叉后最大上涨幅度：'+maxRiseSinceCross+'。');
-lines.push('交叉后最大回撤：'+maxDrawdownSinceCross+'。');
-lines.push('4小时均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。'));
-lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
-lines.push('4小时 MACD 柱体 '+(m4h.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
-lines.push('1小时 RSI(14) '+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'。');
-lines.push('1小时 MACD 柱体 '+(m.hist>=0?'为正。':'为负。'));
-    lines.push('RSI(14) '+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'：'+(rv>=70?'短线偏热，避免仅因上涨追入。':rv<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
-    lines.push('MACD 柱体 '+(m.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
-    lines.push('多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。');
-    lines.push('空头情景：价格跌破 EMA20 与动态支撑，反弹无法收复时，下行风险增加。');
-    lines.push('风险控制：单一指标不构成交易信号；关注收盘确认、波动幅度和仓位风险。');
-    $('analysis').textContent=lines.join('\n\n');
+   
+
+// 一、4小时市场趋势
+lines.push('【一、4小时市场趋势】');
+lines.push(
+  '趋势判断：'+trend+'。'+strong+'\n'+
+  '均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。')+'\n'+
+  'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'。'+(rv4h>=70?'短线偏热，注意回调。':rv4h<=30?'短线偏弱，等待止跌。':'动能处于中间区域。')+'\n'+
+  'MACD：'+(m4h.hist>=0?'柱体为正，动能偏向上行。':'柱体为负，动能偏向下行。')
+);
+
+// 二、最近一次EMA交叉
+lines.push('【二、最近一次EMA交叉】');
+lines.push(
+  '当前交叉信号：'+cross4h+'\n'+
+  '最近一次历史交叉：'+lastCrossType+'\n'+
+  '交叉确认时间：'+lastCrossTime+'\n'+
+  '交叉后经过：'+barsSinceCross+'\n'+
+  '距今时间：'+daysSinceCross
+);
+
+// 三、交叉后的价格表现
+lines.push('【三、交叉后的价格表现】');
+lines.push(
+  '当前累计涨跌幅：'+changeSinceCross+'\n'+
+  '交叉后最高价：'+highestSinceCross+'\n'+
+  '交叉后最低价：'+lowestSinceCross+'\n'+
+  '最大上涨幅度：'+maxRiseSinceCross+'\n'+
+  '最大回撤：'+maxDrawdownSinceCross
+);
+
+// 四、1小时短线动能
+lines.push('【四、1小时短线动能】');
+lines.push(
+  'RSI(14)：'+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'。'+(rv>=70?'短线偏热，避免追高。':rv<=30?'短线偏弱，等待反转确认。':'动能处于中间区域。')+'\n'+
+  'MACD：'+(m.hist>=0?'柱体为正，动能偏向上行。':'柱体为负，动能偏向下行。')
+);
+
+// 五、交易情景与风险控制
+lines.push('【五、交易情景与风险控制】');
+lines.push(
+  '多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。\n'+
+  '空头情景：价格跌破 EMA20 与动态支撑，反弹无法收复时，下行风险增加。\n'+
+  '风险控制：单一指标不构成交易信号；关注收盘确认、波动幅度和仓位风险。'
+);
+
+$('analysis').textContent=lines.join('\n\n');
+
     let a=[];
     if(Number.isFinite(p.resistance)&&price>p.resistance)a.push('价格高于近期局部高点阻力参考 '+fmt(p.resistance)+'；需观察收盘能否确认突破。');
     else if(Number.isFinite(p.resistance))a.push('上方动态阻力参考：'+fmt(p.resistance));
