@@ -198,8 +198,8 @@ const close4h=closes4h[closes4h.length-1];
 
 const trend=close4h>e20_4h&&e20_4h>e50_4h?'偏多':close4h<e20_4h&&e20_4h<e50_4h?'偏空':'震荡 / 等待确认';
 const strong=close4h>e20_4h&&e20_4h>e50_4h&&m4h.hist>0?'4小时多头结构较强':close4h<e20_4h&&e20_4h<e50_4h&&m4h.hist<0?'4小时空头结构较强':'4小时均线或 MACD 尚未形成一致方向';
-    const trend=price>e20&&e20>e50?'偏多':price<e20&&e20<e50?'偏空':'震荡 / 等待确认';
-    const strong=price>e20&&e20>e50&&m.hist>0?'多头结构较强':price<e20&&e20<e50&&m.hist<0?'空头结构较强':'均线或 MACD 尚未形成一致方向';
+    
+    
     $('price').textContent=fmt(price);$('updated').textContent='更新时间：'+new Date().toLocaleString();
     $('change').textContent=Number.isFinite(change)?pct(change):'暂不可用';$('change').className='v '+(Number.isFinite(change)?(change>=0?'green':'red'):'amber');
     $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
