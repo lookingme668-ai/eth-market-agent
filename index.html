@@ -137,20 +137,22 @@ function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
 async function refresh(){
   $('status').textContent='正在更新…';$('dot').className='dot';
   try{
-    const [ticker,raw]=await Promise.all([
-      getJSON(API+'/products/ETH-USD/ticker'),
-      getJSON(API+'/products/ETH-USD/candles?granularity=3600')
-    ]);
-    const price=Number(ticker.price),open=Number(ticker.open_24h),vol=Number(ticker.volume);
-    const change=(price/open-1)*100;
+    const [ticker,stats,raw]=await Promise.all([
+  getJSON(API+'/products/ETH-USD/ticker'),
+  getJSON(API+'/products/ETH-USD/stats'),
+  getJSON(API+'/products/ETH-USD/candles?granularity=3600')
+]);
+const price=Number(ticker.price),open=Number(stats.open),vol=Number(stats.volume);
+const high=Number(stats.high),low=Number(stats.low);
+const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1)*100:NaN;
     // Coinbase candles: [time, low, high, open, close, volume], newest first
     const c=raw.map(x=>({time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4],volume:+x[5]})).sort((a,b)=>a.time-b.time);
     const closes=c.map(x=>x.close),e20=ema(closes,20),e50=ema(closes,50),e200=ema(closes,200),rv=rsi(closes),m=macd(closes),p=pivots(c);
     const trend=price>e20&&e20>e50?'偏多':price<e20&&e20<e50?'偏空':'震荡 / 等待确认';
     const strong=price>e20&&e20>e50&&m.hist>0?'多头结构较强':price<e20&&e20<e50&&m.hist<0?'空头结构较强':'均线或 MACD 尚未形成一致方向';
     $('price').textContent=fmt(price);$('updated').textContent='更新时间：'+new Date().toLocaleString();
-    $('change').textContent=pct(change);$('change').className='v '+(change>=0?'green':'red');
-    $('range').textContent='24小时高 / 低：'+fmt(Number(ticker.high_24h))+' / '+fmt(Number(ticker.low_24h));
+    $('change').textContent=Number.isFinite(change)?pct(change):'暂不可用';$('change').className='v '+(Number.isFinite(change)?(change>=0?'green':'red'):'amber');
+    $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
     $('trend').textContent=trend;$('trend').className='v '+(trend==='偏多'?'green':trend==='偏空'?'red':'amber');
     $('trendWhy').textContent=strong;
     $('rsi').textContent=Number.isFinite(rv)?rv.toFixed(1):'—';
