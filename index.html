@@ -616,11 +616,104 @@ lines.push(
   '最大回撤：'+maxDrawdownSinceCross
 );
 
-// 四、1小时短线动能
+// 四、1小时短线动能：仅使用已经收盘的1小时K线，避免未完成K线导致信号反复变化
+const currentHourStart=Math.floor(Date.now()/3600)*3600;
+const completedCandles1h=c.filter(candle=>candle.time<currentHourStart);
+const closes1hCompleted=completedCandles1h.map(candle=>candle.close);
+const close1hCompleted=closes1hCompleted.at(-1);
+const e20_1hCompleted=ema(closes1hCompleted,20);
+const e50_1hCompleted=ema(closes1hCompleted,50);
+const e200_1hCompleted=ema(closes1hCompleted,200);
+const rv1hCompleted=rsi(closes1hCompleted);
+const prevRv1hCompleted=rsi(closes1hCompleted.slice(0,-1));
+const m1hCompleted=macd(closes1hCompleted);
+const prevM1hCompleted=macd(closes1hCompleted.slice(0,-1));
+
+const emaVote1h=Number.isFinite(close1hCompleted)&&Number.isFinite(e20_1hCompleted)&&Number.isFinite(e50_1hCompleted)?
+  (close1hCompleted>e20_1hCompleted&&e20_1hCompleted>e50_1hCompleted?1:
+   close1hCompleted<e20_1hCompleted&&e20_1hCompleted<e50_1hCompleted?-1:0):0;
+const rsiVote1h=Number.isFinite(rv1hCompleted)?(rv1hCompleted>55?1:rv1hCompleted<45?-1:0):0;
+const macdVote1h=Number.isFinite(m1hCompleted.hist)?(m1hCompleted.hist>0?1:m1hCompleted.hist<0?-1:0):0;
+const votes1h=[emaVote1h,rsiVote1h,macdVote1h];
+const bullVotes1h=votes1h.filter(v=>v===1).length;
+const bearVotes1h=votes1h.filter(v=>v===-1).length;
+
+let trend1h='短线震荡 / 等待确认';
+if(bullVotes1h===3)trend1h='短线强势偏多';
+else if(bearVotes1h===3)trend1h='短线强势偏空';
+else if(bullVotes1h>=2)trend1h='短线偏多';
+else if(bearVotes1h>=2)trend1h='短线偏空';
+
+const emaText1h=emaVote1h===1?'收盘价高于EMA20，且EMA20高于EMA50，短线结构偏多。':
+  emaVote1h===-1?'收盘价低于EMA20，且EMA20低于EMA50，短线结构偏空。':
+  '价格与EMA20/EMA50尚未形成一致排列。';
+const ema200Text1h=Number.isFinite(e200_1hCompleted)?
+  (close1hCompleted>e200_1hCompleted?'价格位于EMA200上方，中期背景偏强。':
+   close1hCompleted<e200_1hCompleted?'价格位于EMA200下方，中期背景偏弱。':
+   '价格接近EMA200。'):'EMA200数据不足。';
+
+const rsiText1h=!Number.isFinite(rv1hCompleted)?'数据不足，暂无法判断。':
+  rv1hCompleted<30?'明显偏弱，处于超卖区域，等待止跌确认。':
+  rv1hCompleted<45?'偏弱，空头动能占优。':
+  rv1hCompleted<=55?'处于中性区域，多空动能暂不明显。':
+  rv1hCompleted<70?'偏强，多头动能占优。':
+  '多头动能强，但短线偏热，注意回撤风险。';
+const rsiChangeText1h=Number.isFinite(prevRv1hCompleted)?
+  (rv1hCompleted-prevRv1hCompleted>1?'较上一根已完成1小时K线增强。':
+   rv1hCompleted-prevRv1hCompleted< -1?'较上一根已完成1小时K线减弱。':
+   '较上一根已完成1小时K线变化不大。'):'';
+
+let macdText1h='数据不足，暂无法判断。';
+if(Number.isFinite(m1hCompleted.hist)){
+  const direction1h=m1hCompleted.hist>0?'柱体为正，多头动能占优。':
+    m1hCompleted.hist<0?'柱体为负，空头动能占优。':'柱体接近零轴，方向暂不明显。';
+  let momentum1h='';
+  if(Number.isFinite(prevM1hCompleted.hist)){
+    if(m1hCompleted.hist>0){
+      momentum1h=m1hCompleted.hist>prevM1hCompleted.hist?'正柱扩大，向上动能增强。':
+        m1hCompleted.hist<prevM1hCompleted.hist?'正柱收缩，向上动能减弱。':'柱体变化不大。';
+    }else if(m1hCompleted.hist<0){
+      momentum1h=m1hCompleted.hist<prevM1hCompleted.hist?'负柱扩大，向下动能增强。':
+        m1hCompleted.hist>prevM1hCompleted.hist?'负柱收缩，向下动能减弱。':'柱体变化不大。';
+    }else{
+      momentum1h='动能接近零轴，等待方向确认。';
+    }
+  }
+  macdText1h=direction1h+(momentum1h?' '+momentum1h:'');
+}
+
+let consensusText1h='';
+if(trend1h==='短线强势偏多'||trend1h==='短线强势偏空'){
+  consensusText1h='EMA、RSI与MACD三项方向一致，短线信号一致性较高。';
+}else if(trend1h==='短线偏多'){
+  consensusText1h=votes1h.includes(-1)?'多数指标支持短线偏多，但存在反向信号，留意分歧。':'多数指标支持短线偏多，等待进一步确认。';
+}else if(trend1h==='短线偏空'){
+  consensusText1h=votes1h.includes(1)?'多数指标支持短线偏空，但存在反向信号，留意反弹或分歧。':'多数指标支持短线偏空，等待进一步确认。';
+}else{
+  consensusText1h='短线指标方向分散或处于中性区域，暂不宜强行判断方向。';
+}
+
+let timeframeText='';
+if(trend.includes('偏多')&&trend1h.includes('偏多')){
+  timeframeText='4小时与1小时方向一致偏多，主要趋势与短线动能相互配合。';
+}else if(trend.includes('偏空')&&trend1h.includes('偏空')){
+  timeframeText='4小时与1小时方向一致偏空，主要趋势与短线动能相互配合。';
+}else if(trend.includes('偏多')&&trend1h.includes('偏空')){
+  timeframeText='4小时偏多而1小时偏空，可能是上涨趋势中的短线回调，暂不据此认定大趋势反转。';
+}else if(trend.includes('偏空')&&trend1h.includes('偏多')){
+  timeframeText='4小时偏空而1小时偏多，可能是下跌趋势中的短线反弹，需观察能否扭转4小时结构。';
+}else{
+  timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待收盘确认。';
+}
+
 lines.push('【四、1小时短线动能】');
 lines.push(
-  'RSI(14)：'+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'。'+(rv>=70?'短线偏热，避免追高。':rv<=30?'短线偏弱，等待反转确认。':'动能处于中间区域。')+'\n'+
-  'MACD：'+(m.hist>=0?'柱体为正，动能偏向上行。':'柱体为负，动能偏向下行。')
+  '短线综合判断：'+trend1h+'。'+consensusText1h+'\\n'+
+  'EMA结构：'+emaText1h+' '+ema200Text1h+'\\n'+
+  'RSI(14)：'+(Number.isFinite(rv1hCompleted)?rv1hCompleted.toFixed(1)+'。':'')+rsiText1h+(rsiChangeText1h?' '+rsiChangeText1h:'')+'\\n'+
+  'MACD：'+macdText1h+'\\n'+
+  '周期联动：'+timeframeText+'\\n'+
+  '说明：以上1小时综合判断仅使用已收盘K线，最新完整K线时间为'+(completedCandles1h.length?new Date(completedCandles1h.at(-1).time*1000).toLocaleString():'数据不足')+'。'
 );
 
 // 五、交易情景与风险控制
