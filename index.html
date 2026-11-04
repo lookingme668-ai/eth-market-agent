@@ -258,7 +258,12 @@ function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
 async function refresh(){
   $('status').textContent='正在更新…';$('dot').className='dot';
   try{
-    const [ticker,stats,raw]=await Promise.all([
+    const [ticker,stats,raw,historicalHourly]=await Promise.all([
+  getJSON(API+'/products/ETH-USD/ticker'),
+  getJSON(API+'/products/ETH-USD/stats'),
+  getJSON(API+'/products/ETH-USD/candles?granularity=3600'),
+  getHistoricalHourlyCandles(60)
+]);
   getJSON(API+'/products/ETH-USD/ticker'),
   getJSON(API+'/products/ETH-USD/stats'),
   getHistoricalHourlyCandles(60)
@@ -270,7 +275,7 @@ const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1
     const c=raw.map(x=>({time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4],volume:+x[5]})).sort((a,b)=>a.time-b.time);
     const closes=c.map(x=>x.close),e20=ema(closes,20),e50=ema(closes,50),e200=ema(closes,200),rv=rsi(closes),m=macd(closes),p=pivots(c);
 
-const historicalHourly=await getHistoricalHourlyCandles(60);
+
 const candles4h=aggregate4h(historicalHourly);
     console.log('历史1小时K线数量：',historicalHourly.length);
 console.log('历史4小时K线数量：',candles4h.length);
