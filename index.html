@@ -560,22 +560,7 @@ if(trend1h==='短线强势偏多'||trend1h==='短线强势偏空'){
   consensusText1h='指标方向分散或处于中性区域，短线暂不宜强行判断方向。';
 }
 
-let timeframeText='';
-const fourHourBull=trend.includes('偏多');
-const fourHourBear=trend.includes('偏空');
-const oneHourBull=trend1h.includes('偏多');
-const oneHourBear=trend1h.includes('偏空');
-if(fourHourBull&&oneHourBull){
-  timeframeText='4小时与1小时方向一致偏多，短线走势与主要趋势相互确认。';
-}else if(fourHourBear&&oneHourBear){
-  timeframeText='4小时与1小时方向一致偏空，短线走势与主要趋势相互确认。';
-}else if(fourHourBull&&oneHourBear){
-  timeframeText='4小时偏多、1小时偏空，可能是上涨趋势中的短线回调，暂不能仅凭1小时走弱认定大趋势反转。';
-}else if(fourHourBear&&oneHourBull){
-  timeframeText='4小时偏空、1小时偏多，可能是下跌趋势中的短线反弹，暂不能仅凭1小时走强认定大趋势反转。';
-}else{
-  timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待更多收盘确认。';
-}
+
     // 获取上一根4小时K线的EMA数值
 const prevCloses4h=closes4h.slice(0,-1);
 const prevE20_4h=ema(prevCloses4h,20);
@@ -612,6 +597,23 @@ const strong=trend==='强势偏多'?'EMA、RSI与MACD三项一致偏多':
   trend==='偏多'?'多数指标支持偏多，仍需留意指标分歧':
   trend==='偏空'?'多数指标支持偏空，仍需留意指标分歧':
   '三项指标暂未形成明确多数方向';
+
+let timeframeText='';
+const fourHourBull=trend.includes('偏多');
+const fourHourBear=trend.includes('偏空');
+const oneHourBull=trend1h.includes('偏多');
+const oneHourBear=trend1h.includes('偏空');
+if(fourHourBull&&oneHourBull){
+  timeframeText='4小时与1小时方向一致偏多，短线走势与主要趋势相互确认。';
+}else if(fourHourBear&&oneHourBear){
+  timeframeText='4小时与1小时方向一致偏空，短线走势与主要趋势相互确认。';
+}else if(fourHourBull&&oneHourBear){
+  timeframeText='4小时偏多、1小时偏空，可能是上涨趋势中的短线回调，暂不能仅凭1小时走弱认定大趋势反转。';
+}else if(fourHourBear&&oneHourBull){
+  timeframeText='4小时偏空、1小时偏多，可能是下跌趋势中的短线反弹，暂不能仅凭1小时走强认定大趋势反转。';
+}else{
+  timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待更多收盘确认。';
+}
 
 const emaText=emaVote===1?'多头排列，收盘价位于EMA20上方，趋势偏多。':
   emaVote===-1?'空头排列，收盘价位于EMA20下方，趋势偏空。':
