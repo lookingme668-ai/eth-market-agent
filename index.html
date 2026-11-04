@@ -383,6 +383,41 @@ if(candles4h.length<50)throw new Error('4小时K线数量不足，暂时无法�
 const closes4h=candles4h.map(x=>x.close);
 const e20_4h=ema(closes4h,20);
 const e50_4h=ema(closes4h,50);
+    // 计算全部4小时K线的EMA历史序列
+const ema20Series4h=emaSeries(closes4h,20);
+const ema50Series4h=emaSeries(closes4h,50);
+
+// 寻找最近一次金叉或死叉
+let lastCrossIndex=-1;
+let lastCrossType='暂无历史交叉记录';
+
+for(let i=1;i<closes4h.length;i++){
+  if(
+    ema20Series4h[i-1]<=ema50Series4h[i-1] &&
+    ema20Series4h[i]>ema50Series4h[i]
+  ){
+    lastCrossIndex=i;
+    lastCrossType='4小时EMA金叉';
+  }else if(
+    ema20Series4h[i-1]>=ema50Series4h[i-1] &&
+    ema20Series4h[i]<ema50Series4h[i]
+  ){
+    lastCrossIndex=i;
+    lastCrossType='4小时EMA死叉';
+  }
+}
+
+// 记录交叉时间和经过的K线数量
+let lastCrossTime='暂无记录';
+let barsSinceCross='暂无记录';
+
+if(lastCrossIndex>=0){
+  lastCrossTime=new Date(
+    candles4h[lastCrossIndex].time*1000
+  ).toLocaleString();
+
+  barsSinceCross=(candles4h.length-1-lastCrossIndex)+'根4小时K线';
+}
 const rv4h=rsi(closes4h);
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
@@ -424,6 +459,9 @@ $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'�
     let lines=[];
     lines.push('4小时趋势（基于已完成的4小时K线）：'+trend+'。'+strong+'。');
     lines.push('4小时EMA交叉信号：'+cross4h+'。');
+    lines.push('最近一次历史交叉：'+lastCrossType+'。');
+lines.push('最近一次交叉时间：'+lastCrossTime+'。');
+lines.push('交叉后经过：'+barsSinceCross+'。');
 lines.push('4小时均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。'));
 lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
 lines.push('4小时 MACD 柱体 '+(m4h.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
