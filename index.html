@@ -482,6 +482,100 @@ const rv4h=rsi(closes4h);
 const prevRv4h=rsi(closes4h.slice(0,-1));
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
+
+// 1小时短线综合判断只使用已经收盘的K线，避免未完成K线造成信号反复变化
+const currentHourStart=Math.floor(Date.now()/3600000)*3600;
+const closedCandles1h=c.filter(x=>x.time<currentHourStart);
+const closes1hClosed=closedCandles1h.map(x=>x.close);
+const close1hClosed=closes1hClosed[closes1hClosed.length-1];
+const e20_1hClosed=ema(closes1hClosed,20);
+const e50_1hClosed=ema(closes1hClosed,50);
+const e200_1hClosed=ema(closes1hClosed,200);
+const rv1hClosed=rsi(closes1hClosed);
+const prevRv1hClosed=rsi(closes1hClosed.slice(0,-1));
+const m1hClosed=macd(closes1hClosed);
+const prevM1hClosed=macd(closes1hClosed.slice(0,-1));
+
+const emaVote1h=Number.isFinite(e20_1hClosed)&&Number.isFinite(e50_1hClosed)&&Number.isFinite(close1hClosed)?
+  (close1hClosed>e20_1hClosed&&e20_1hClosed>e50_1hClosed?1:
+   close1hClosed<e20_1hClosed&&e20_1hClosed<e50_1hClosed?-1:0):0;
+const rsiVote1h=Number.isFinite(rv1hClosed)?(rv1hClosed>55?1:rv1hClosed<45?-1:0):0;
+const macdVote1h=Number.isFinite(m1hClosed.hist)?(m1hClosed.hist>0?1:m1hClosed.hist<0?-1:0):0;
+const votes1h=[emaVote1h,rsiVote1h,macdVote1h];
+const bullVotes1h=votes1h.filter(v=>v===1).length;
+const bearVotes1h=votes1h.filter(v=>v===-1).length;
+
+let trend1h='短线震荡 / 等待确认';
+if(bullVotes1h===3)trend1h='短线强势偏多';
+else if(bearVotes1h===3)trend1h='短线强势偏空';
+else if(bullVotes1h>=2)trend1h='短线偏多';
+else if(bearVotes1h>=2)trend1h='短线偏空';
+
+const emaText1h=emaVote1h===1?'收盘价高于EMA20，且EMA20高于EMA50，短线结构偏多。':
+  emaVote1h===-1?'收盘价低于EMA20，且EMA20低于EMA50，短线结构偏空。':
+  '价格与EMA20/EMA50排列不一致，短线趋势结构尚未确认。';
+const ema200Text1h=Number.isFinite(e200_1hClosed)?
+  (close1hClosed>e200_1hClosed?'价格位于EMA200上方，中期背景偏强。':
+   close1hClosed<e200_1hClosed?'价格位于EMA200下方，中期背景偏弱。':'价格接近EMA200。'):
+  'EMA200数据不足，暂无法判断。';
+
+const rsiText1h=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断。':
+  rv1hClosed<30?'明显偏弱，处于超卖区域，等待止跌确认。':
+  rv1hClosed<45?'偏弱，空头动能占优。':
+  rv1hClosed<=55?'中性区域，多空动能暂不明显。':
+  rv1hClosed<70?'偏强，多头动能占优。':
+  '多头动能较强但已偏热，注意短线回撤风险。';
+const rsiChangeText1h=Number.isFinite(prevRv1hClosed)?
+  (rv1hClosed-prevRv1hClosed>1?'较上一根已完成1小时K线增强。':
+   rv1hClosed-prevRv1hClosed< -1?'较上一根已完成1小时K线减弱。':
+   '较上一根已完成1小时K线变化不大。'):'';
+
+let macdText1h='数据不足，暂无法判断。';
+if(Number.isFinite(m1hClosed.hist)){
+  const directionText=m1hClosed.hist>0?'柱体为正，多头动能占优。':
+    m1hClosed.hist<0?'柱体为负，空头动能占优。':'柱体接近零轴，动能暂不明显。';
+  let momentumText='';
+  if(Number.isFinite(prevM1hClosed.hist)){
+    if(m1hClosed.hist>0){
+      momentumText=m1hClosed.hist>prevM1hClosed.hist?'正柱扩大，多头动能增强。':
+        m1hClosed.hist<prevM1hClosed.hist?'正柱收缩，多头动能减弱。':'柱体变化不大。';
+    }else if(m1hClosed.hist<0){
+      momentumText=m1hClosed.hist<prevM1hClosed.hist?'负柱扩大，空头动能增强。':
+        m1hClosed.hist>prevM1hClosed.hist?'负柱收缩，空头动能减弱。':'柱体变化不大。';
+    }else{
+      momentumText='动能接近零轴，等待方向确认。';
+    }
+  }
+  macdText1h=directionText+(momentumText?' '+momentumText:'');
+}
+
+let consensusText1h='';
+if(trend1h==='短线强势偏多'||trend1h==='短线强势偏空'){
+  consensusText1h='EMA、RSI与MACD三项一致，短线方向一致性较高。';
+}else if(trend1h==='短线偏多'){
+  consensusText1h=votes1h.includes(-1)?'多数指标支持短线偏多，但存在反向信号，注意分歧。':'多数指标支持短线偏多。';
+}else if(trend1h==='短线偏空'){
+  consensusText1h=votes1h.includes(1)?'多数指标支持短线偏空，但存在反向信号，注意分歧。':'多数指标支持短线偏空。';
+}else{
+  consensusText1h='指标方向分散或处于中性区域，短线暂不宜强行判断方向。';
+}
+
+let timeframeText='';
+const fourHourBull=trend.includes('偏多');
+const fourHourBear=trend.includes('偏空');
+const oneHourBull=trend1h.includes('偏多');
+const oneHourBear=trend1h.includes('偏空');
+if(fourHourBull&&oneHourBull){
+  timeframeText='4小时与1小时方向一致偏多，短线走势与主要趋势相互确认。';
+}else if(fourHourBear&&oneHourBear){
+  timeframeText='4小时与1小时方向一致偏空，短线走势与主要趋势相互确认。';
+}else if(fourHourBull&&oneHourBear){
+  timeframeText='4小时偏多、1小时偏空，可能是上涨趋势中的短线回调，暂不能仅凭1小时走弱认定大趋势反转。';
+}else if(fourHourBear&&oneHourBull){
+  timeframeText='4小时偏空、1小时偏多，可能是下跌趋势中的短线反弹，暂不能仅凭1小时走强认定大趋势反转。';
+}else{
+  timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待更多收盘确认。';
+}
     // 获取上一根4小时K线的EMA数值
 const prevCloses4h=closes4h.slice(0,-1);
 const prevE20_4h=ema(prevCloses4h,20);
@@ -616,107 +710,21 @@ lines.push(
   '最大回撤：'+maxDrawdownSinceCross
 );
 
-// 四、1小时短线动能：仅使用已经收盘的1小时K线，避免未完成K线导致信号反复变化
-const currentHourStart=Math.floor(Date.now()/3600)*3600;
-const completedCandles1h=c.filter(candle=>candle.time<currentHourStart);
-const closes1hCompleted=completedCandles1h.map(candle=>candle.close);
-const close1hCompleted=closes1hCompleted.at(-1);
-const e20_1hCompleted=ema(closes1hCompleted,20);
-const e50_1hCompleted=ema(closes1hCompleted,50);
-const e200_1hCompleted=ema(closes1hCompleted,200);
-const rv1hCompleted=rsi(closes1hCompleted);
-const prevRv1hCompleted=rsi(closes1hCompleted.slice(0,-1));
-const m1hCompleted=macd(closes1hCompleted);
-const prevM1hCompleted=macd(closes1hCompleted.slice(0,-1));
-
-const emaVote1h=Number.isFinite(close1hCompleted)&&Number.isFinite(e20_1hCompleted)&&Number.isFinite(e50_1hCompleted)?
-  (close1hCompleted>e20_1hCompleted&&e20_1hCompleted>e50_1hCompleted?1:
-   close1hCompleted<e20_1hCompleted&&e20_1hCompleted<e50_1hCompleted?-1:0):0;
-const rsiVote1h=Number.isFinite(rv1hCompleted)?(rv1hCompleted>55?1:rv1hCompleted<45?-1:0):0;
-const macdVote1h=Number.isFinite(m1hCompleted.hist)?(m1hCompleted.hist>0?1:m1hCompleted.hist<0?-1:0):0;
-const votes1h=[emaVote1h,rsiVote1h,macdVote1h];
-const bullVotes1h=votes1h.filter(v=>v===1).length;
-const bearVotes1h=votes1h.filter(v=>v===-1).length;
-
-let trend1h='短线震荡 / 等待确认';
-if(bullVotes1h===3)trend1h='短线强势偏多';
-else if(bearVotes1h===3)trend1h='短线强势偏空';
-else if(bullVotes1h>=2)trend1h='短线偏多';
-else if(bearVotes1h>=2)trend1h='短线偏空';
-
-const emaText1h=emaVote1h===1?'收盘价高于EMA20，且EMA20高于EMA50，短线结构偏多。':
-  emaVote1h===-1?'收盘价低于EMA20，且EMA20低于EMA50，短线结构偏空。':
-  '价格与EMA20/EMA50尚未形成一致排列。';
-const ema200Text1h=Number.isFinite(e200_1hCompleted)?
-  (close1hCompleted>e200_1hCompleted?'价格位于EMA200上方，中期背景偏强。':
-   close1hCompleted<e200_1hCompleted?'价格位于EMA200下方，中期背景偏弱。':
-   '价格接近EMA200。'):'EMA200数据不足。';
-
-const rsiText1h=!Number.isFinite(rv1hCompleted)?'数据不足，暂无法判断。':
-  rv1hCompleted<30?'明显偏弱，处于超卖区域，等待止跌确认。':
-  rv1hCompleted<45?'偏弱，空头动能占优。':
-  rv1hCompleted<=55?'处于中性区域，多空动能暂不明显。':
-  rv1hCompleted<70?'偏强，多头动能占优。':
-  '多头动能强，但短线偏热，注意回撤风险。';
-const rsiChangeText1h=Number.isFinite(prevRv1hCompleted)?
-  (rv1hCompleted-prevRv1hCompleted>1?'较上一根已完成1小时K线增强。':
-   rv1hCompleted-prevRv1hCompleted< -1?'较上一根已完成1小时K线减弱。':
-   '较上一根已完成1小时K线变化不大。'):'';
-
-let macdText1h='数据不足，暂无法判断。';
-if(Number.isFinite(m1hCompleted.hist)){
-  const direction1h=m1hCompleted.hist>0?'柱体为正，多头动能占优。':
-    m1hCompleted.hist<0?'柱体为负，空头动能占优。':'柱体接近零轴，方向暂不明显。';
-  let momentum1h='';
-  if(Number.isFinite(prevM1hCompleted.hist)){
-    if(m1hCompleted.hist>0){
-      momentum1h=m1hCompleted.hist>prevM1hCompleted.hist?'正柱扩大，向上动能增强。':
-        m1hCompleted.hist<prevM1hCompleted.hist?'正柱收缩，向上动能减弱。':'柱体变化不大。';
-    }else if(m1hCompleted.hist<0){
-      momentum1h=m1hCompleted.hist<prevM1hCompleted.hist?'负柱扩大，向下动能增强。':
-        m1hCompleted.hist>prevM1hCompleted.hist?'负柱收缩，向下动能减弱。':'柱体变化不大。';
-    }else{
-      momentum1h='动能接近零轴，等待方向确认。';
-    }
-  }
-  macdText1h=direction1h+(momentum1h?' '+momentum1h:'');
-}
-
-let consensusText1h='';
-if(trend1h==='短线强势偏多'||trend1h==='短线强势偏空'){
-  consensusText1h='EMA、RSI与MACD三项方向一致，短线信号一致性较高。';
-}else if(trend1h==='短线偏多'){
-  consensusText1h=votes1h.includes(-1)?'多数指标支持短线偏多，但存在反向信号，留意分歧。':'多数指标支持短线偏多，等待进一步确认。';
-}else if(trend1h==='短线偏空'){
-  consensusText1h=votes1h.includes(1)?'多数指标支持短线偏空，但存在反向信号，留意反弹或分歧。':'多数指标支持短线偏空，等待进一步确认。';
-}else{
-  consensusText1h='短线指标方向分散或处于中性区域，暂不宜强行判断方向。';
-}
-
-let timeframeText='';
-if(trend.includes('偏多')&&trend1h.includes('偏多')){
-  timeframeText='4小时与1小时方向一致偏多，主要趋势与短线动能相互配合。';
-}else if(trend.includes('偏空')&&trend1h.includes('偏空')){
-  timeframeText='4小时与1小时方向一致偏空，主要趋势与短线动能相互配合。';
-}else if(trend.includes('偏多')&&trend1h.includes('偏空')){
-  timeframeText='4小时偏多而1小时偏空，可能是上涨趋势中的短线回调，暂不据此认定大趋势反转。';
-}else if(trend.includes('偏空')&&trend1h.includes('偏多')){
-  timeframeText='4小时偏空而1小时偏多，可能是下跌趋势中的短线反弹，需观察能否扭转4小时结构。';
-}else{
-  timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待收盘确认。';
-}
-
+// 四、1小时短线动能与多周期联动
 lines.push('【四、1小时短线动能】');
 lines.push(
-  '短线综合判断：'+trend1h+'。'+consensusText1h+'\\n'+
-  'EMA结构：'+emaText1h+' '+ema200Text1h+'\\n'+
-  'RSI(14)：'+(Number.isFinite(rv1hCompleted)?rv1hCompleted.toFixed(1)+'。':'')+rsiText1h+(rsiChangeText1h?' '+rsiChangeText1h:'')+'\\n'+
+  '综合判断：'+trend1h+'。'+consensusText1h+'\\n'+
+  'EMA结构：'+emaText1h+'\\n'+
+  'EMA200背景：'+ema200Text1h+'\\n'+
+  'RSI(14)：'+(Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1)+'。'+rsiText1h+(rsiChangeText1h?' '+rsiChangeText1h:''):rsiText1h)+'\\n'+
   'MACD：'+macdText1h+'\\n'+
-  '周期联动：'+timeframeText+'\\n'+
-  '说明：以上1小时综合判断仅使用已收盘K线，最新完整K线时间为'+(completedCandles1h.length?new Date(completedCandles1h.at(-1).time*1000).toLocaleString():'数据不足')+'。'
+  '信号依据：使用最近一根已完成的1小时K线计算，避免当前未收盘K线干扰。'
 );
 
-// 五、交易情景与风险控制
+lines.push('【五、4小时与1小时联动】');
+lines.push(timeframeText);
+
+// 六、交易情景与风险控制
 lines.push('【五、交易情景与风险控制】');
 lines.push(
   '多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。\n'+
