@@ -261,10 +261,29 @@ function draw(c){
 function draw4h(candles){
   const el=$('chart4h');
   if(!el||candles.length===0)return;
+
   const ctx=el.getContext('2d'),w=el.width,h=el.height;
   ctx.clearRect(0,0,w,h);
 
   const pad=30;
+
+  // 计算EMA20和EMA50
+  function calcEMA(data,period){
+    const k=2/(period+1);
+    let result=[];
+    let value=data[0].close;
+    result.push(value);
+
+    for(let i=1;i<data.length;i++){
+      value=data[i].close*k+value*(1-k);
+      result.push(value);
+    }
+    return result;
+  }
+
+  const ema20=calcEMA(candles,20);
+  const ema50=calcEMA(candles,50);
+
   const min=Math.min(...candles.map(x=>x.low));
   const max=Math.max(...candles.map(x=>x.high));
   const range=max-min||1;
@@ -272,6 +291,7 @@ function draw4h(candles){
 
   ctx.strokeStyle='#26324a';
   ctx.lineWidth=1;
+
   for(let i=0;i<5;i++){
     const yy=pad+i*(h-2*pad)/4;
     ctx.beginPath();
@@ -283,6 +303,7 @@ function draw4h(candles){
   const step=w/candles.length;
   const bodyWidth=Math.max(2,step*0.65);
 
+  // 绘制蜡烛
   candles.forEach((c,i)=>{
     const x=step*(i+0.5);
     const up=c.close>=c.open;
@@ -302,10 +323,34 @@ function draw4h(candles){
     ctx.fillRect(x-bodyWidth/2,top,bodyWidth,Math.max(1,bottom-top));
   });
 
+  // 绘制EMA均线
+  function drawLine(values,color){
+    ctx.beginPath();
+    values.forEach((v,i)=>{
+      const x=step*(i+0.5);
+      const yy=y(v);
+      if(i===0)ctx.moveTo(x,yy);
+      else ctx.lineTo(x,yy);
+    });
+    ctx.strokeStyle=color;
+    ctx.lineWidth=2;
+    ctx.stroke();
+  }
+
+  drawLine(ema20,'#f5c542');
+  drawLine(ema50,'#4da3ff');
+
+  // 价格标签
   ctx.fillStyle='#91a0ba';
   ctx.font='13px system-ui';
   ctx.fillText(fmt(max),8,16);
   ctx.fillText(fmt(min),8,h-5);
+
+  // 均线图例
+  ctx.fillStyle='#f5c542';
+  ctx.fillText('EMA20',w-145,18);
+  ctx.fillStyle='#4da3ff';
+  ctx.fillText('EMA50',w-75,18);
 }
   function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
 
