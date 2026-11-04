@@ -437,6 +437,47 @@ if(lastCrossIndex>=0 && Number.isFinite(price)){
     changeSinceCross=(change>0?'+':'')+change.toFixed(2)+'%';
   }
 }
+    // 计算最近一次EMA交叉后的最高价、最低价和最大回撤
+let highestSinceCross='暂无记录';
+let lowestSinceCross='暂无记录';
+let maxRiseSinceCross='暂无记录';
+let maxDrawdownSinceCross='暂无记录';
+
+if(lastCrossIndex>=0 && Number.isFinite(price)){
+  const crossClose=candles4h[lastCrossIndex].close;
+
+  if(crossClose>0){
+    let highest=crossClose;
+    let lowest=crossClose;
+    let peakClose=crossClose;
+    let maxDrawdown=0;
+
+    // 统计交叉确认之后的完整4小时K线
+    for(let i=lastCrossIndex+1;i<candles4h.length;i++){
+      highest=Math.max(highest,candles4h[i].high);
+      lowest=Math.min(lowest,candles4h[i].low);
+
+      const close=candles4h[i].close;
+
+      peakClose=Math.max(peakClose,close);
+
+      const drawdown=(peakClose-close)/peakClose*100;
+
+      maxDrawdown=Math.max(maxDrawdown,drawdown);
+    }
+
+    // 纳入当前实时价格
+    highest=Math.max(highest,price);
+    lowest=Math.min(lowest,price);
+
+    const rise=(highest-crossClose)/crossClose*100;
+
+    highestSinceCross='$'+highest.toFixed(2);
+    lowestSinceCross='$'+lowest.toFixed(2);
+    maxRiseSinceCross='+'+rise.toFixed(2)+'%';
+    maxDrawdownSinceCross=maxDrawdown.toFixed(2)+'%';
+  }
+}
 const rv4h=rsi(closes4h);
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
@@ -483,6 +524,10 @@ lines.push('最近一次交叉时间：'+lastCrossTime+'。');
 lines.push('交叉后经过：'+barsSinceCross+'。');
     lines.push('最近一次交叉距今：'+daysSinceCross+'。');
     lines.push('交叉后累计涨跌幅：'+changeSinceCross+'。');
+    lines.push('交叉后最高价：'+highestSinceCross+'。');
+lines.push('交叉后最低价：'+lowestSinceCross+'。');
+lines.push('交叉后最大上涨幅度：'+maxRiseSinceCross+'。');
+lines.push('交叉后最大回撤：'+maxDrawdownSinceCross+'。');
 lines.push('4小时均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。'));
 lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
 lines.push('4小时 MACD 柱体 '+(m4h.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
