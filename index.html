@@ -386,6 +386,19 @@ const e50_4h=ema(closes4h,50);
 const rv4h=rsi(closes4h);
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
+    // 获取上一根4小时K线的EMA数值
+const prevCloses4h=closes4h.slice(0,-1);
+const prevE20_4h=ema(prevCloses4h,20);
+const prevE50_4h=ema(prevCloses4h,50);
+
+// 判断EMA20与EMA50是否发生交叉
+let cross4h='暂无金叉或死叉信号';
+
+if(prevE20_4h<=prevE50_4h && e20_4h>e50_4h){
+  cross4h='4小时EMA金叉';
+}else if(prevE20_4h>=prevE50_4h && e20_4h<e50_4h){
+  cross4h='4小时EMA死叉';
+}
 
 const trend=close4h>e20_4h&&e20_4h>e50_4h?'偏多':close4h<e20_4h&&e20_4h<e50_4h?'偏空':'震荡 / 等待确认';
 const strong=close4h>e20_4h&&e20_4h>e50_4h&&m4h.hist>0?'4小时多头结构较强':close4h<e20_4h&&e20_4h<e50_4h&&m4h.hist<0?'4小时空头结构较强':'4小时均线或 MACD 尚未形成一致方向';
@@ -410,6 +423,8 @@ $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'�
     draw4h(candles4h.slice(-180));
     let lines=[];
     lines.push('4小时趋势（基于已完成的4小时K线）：'+trend+'。'+strong+'。');
+    lines.push('4小时EMA交叉信号：'+cross4h+'。');
+lines.push('4小时均线排列：'+(e20_4h>e50_4h?'EMA20在EMA50上方，短期偏强。':e20_4h<e50_4h?'EMA20在EMA50下方，短期偏弱。':'EMA20与EMA50接近。'));
 lines.push('4小时 RSI(14) '+(Number.isFinite(rv4h)?rv4h.toFixed(1):'数据不足')+'：'+(rv4h>=70?'短线偏热，避免仅因上涨追入。':rv4h<=30?'短线偏弱，等待止跌信号。':'动能处于中间区域。'));
 lines.push('4小时 MACD 柱体 '+(m4h.hist>=0?'为正，动能偏向上行。':'为负，动能偏向下行。'));
 lines.push('1小时 RSI(14) '+(Number.isFinite(rv)?rv.toFixed(1):'数据不足')+'。');
