@@ -264,10 +264,7 @@ async function refresh(){
   getJSON(API+'/products/ETH-USD/candles?granularity=3600'),
   getHistoricalHourlyCandles(60)
 ]);
-  getJSON(API+'/products/ETH-USD/ticker'),
-  getJSON(API+'/products/ETH-USD/stats'),
-  getHistoricalHourlyCandles(60)
-]);
+
 const price=Number(ticker.price),open=Number(stats.open),vol=Number(stats.volume);
 const high=Number(stats.high),low=Number(stats.low);
 const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1)*100:NaN;
