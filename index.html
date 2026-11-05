@@ -224,6 +224,105 @@ canvas{height:280px}
   .analysis-sections{gap:12px}
 }
 
+
+/* ===== 统一全站卡片与标题规范：仅视觉样式 ===== */
+:root{
+  --ui-card-bg:linear-gradient(155deg,rgba(19,31,51,.98),rgba(13,22,38,.98));
+  --ui-card-border:rgba(145,169,205,.26);
+  --ui-card-radius:16px;
+  --ui-card-shadow:0 8px 22px rgba(0,0,0,.18);
+  --ui-card-gap:16px;
+  --ui-card-pad:18px;
+}
+/* 主区块统一间距 */
+.grid,.trend-summary,.chart-pair,.indicator-grid,.analysis-sections{gap:var(--ui-card-gap)}
+.grid{margin:20px 0 24px}
+.chart-pair,.trend-summary{margin-bottom:24px}
+/* 所有一级卡片采用一致边界、圆角与内边距 */
+.card,.chart-pair>.card,.trend-summary>.trend-card,
+.indicator-section>.card,.analysis-layout>.card{
+  min-width:0;
+  border:1px solid var(--ui-card-border);
+  border-radius:var(--ui-card-radius);
+  background:var(--ui-card-bg);
+  box-shadow:var(--ui-card-shadow);
+  padding:var(--ui-card-pad);
+}
+/* 顶部行情卡片只保留轻微强调线，不额外制造厚重边框 */
+.grid:not(.chart-pair)>.card:before{height:2px;opacity:.72}
+.trend-summary>.trend-card{border-top:3px solid rgba(141,181,255,.72)}
+.trend-summary>.trend-card:first-child{border-top-color:rgba(53,211,162,.82)}
+/* 图表与指标子卡片层级稍浅，避免与外层卡片抢视觉 */
+.indicator-panel,.indicator-volume{
+  border:1px solid rgba(145,169,205,.20);
+  border-radius:12px;
+  background:rgba(6,13,25,.48);
+}
+.indicator-panel{padding:15px}
+.indicator-volume{padding:12px 15px}
+.indicator-panel-title{
+  font-size:14px;
+  line-height:1.45;
+  font-weight:700;
+  letter-spacing:.01em;
+  color:#e2ecff;
+  margin:0 0 10px;
+}
+/* 标题层级统一：区块标题 > 子卡标题 > 正文 */
+.section{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:16px;
+  line-height:1.4;
+  font-weight:750;
+  color:#edf4ff;
+  margin:0 0 16px;
+}
+.section:before{
+  content:"";
+  display:inline-block;
+  flex:0 0 3px;
+  width:3px;
+  height:18px;
+  border-radius:3px;
+  background:var(--blue);
+}
+.indicator-panel-title{font-size:14px}
+.analysis-block h3{font-size:14px;line-height:1.5}
+.k,.indicator-label{font-size:12px;color:#9eacc2}
+.small{line-height:1.7}
+.analysis-layout{gap:16px;margin-top:24px}
+.analysis-layout>.card{padding:20px}
+.analysis-highlight,.analysis-block{
+  border-radius:13px;
+  border-color:rgba(145,169,205,.24);
+}
+.analysis-sections{gap:14px}
+.analysis-block{padding:16px}
+.analysis-block h3{margin-bottom:12px}
+.analysis-block p{line-height:1.85}
+.analysis-highlight{padding:16px}
+.analysis-highlight .highlight-title{letter-spacing:.035em}
+.alerts-panel{border-color:rgba(242,195,111,.28)}
+/* 支撑与阻力卡片采用与顶部行情卡片相同的尺寸和视觉重量 */
+.grid[style*="repeat(2"]>.card{min-height:118px}
+/* 响应式：窄屏统一收紧留白，不改变信息顺序 */
+@media(max-width:900px){
+  .analysis-layout{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  :root{--ui-card-gap:12px;--ui-card-pad:14px}
+  .grid{margin:16px 0 20px}
+  .chart-pair,.trend-summary{margin-bottom:20px}
+  .section{font-size:15px;margin-bottom:13px}
+  .analysis-layout{gap:12px;margin-top:20px}
+  .analysis-layout>.card{padding:15px}
+  .analysis-sections{gap:12px}
+  .analysis-block,.analysis-highlight{padding:14px}
+  .indicator-panel{padding:13px}
+}
+
 </style>
 </head>
 <body>
