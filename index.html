@@ -543,6 +543,10 @@ const rv4h=rsi(closes4h);
 const prevRv4h=rsi(closes4h.slice(0,-1));
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
+const ema200DistancePct=Number.isFinite(price)&&Number.isFinite(e200_4h)&&e200_4h!==0?(price/e200_4h-1)*100:NaN;
+const ema200BackgroundText=Number.isFinite(ema200DistancePct)?
+  (ema200DistancePct>=0?'现价已位于4小时EMA200上方，距离约'+pct(ema200DistancePct)+'。':'现价仍低于4小时EMA200，距离约'+pct(ema200DistancePct)+'，长期均线仍构成上方压力。'):
+  '现价与4小时EMA200距离暂不可计算。';
 
 // 1小时指标统一使用60天历史数据，并排除当前尚未完成的小时K线
 const currentHourStart=Math.floor(Date.now()/3600000)*3600;
@@ -756,6 +760,8 @@ lines.push('【一、4小时市场趋势】');
 lines.push(
   '综合趋势：'+trend+'。'+strong+'。'+'\n'+
   'EMA结构：'+emaText+'\n'+
+  'EMA200长期背景：'+(close4h>e200_4h?'最近已完成4小时收盘价位于EMA200上方，中长期背景偏强。':close4h<e200_4h?'最近已完成4小时收盘价位于EMA200下方，中长期趋势尚未完全转强。':'最近已完成4小时收盘价接近EMA200。')+'\n'+
+  '实时价格距离EMA200：'+ema200BackgroundText+'（现价为实时行情，EMA200按最近已完成4小时K线计算。）'+'\n'+
   'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+rsiText+(rsiChangeText?' '+rsiChangeText:''):rsiText)+'\n'+
   'MACD：'+macdText+'\n'+
   '综合解读：'+consensusText
@@ -778,7 +784,7 @@ lines.push(
   '交叉后最高价：'+highestSinceCross+'\n'+
   '交叉后最低价：'+lowestSinceCross+'\n'+
   '最大上涨幅度：'+maxRiseSinceCross+'\n'+
-  '最大回撤：'+maxDrawdownSinceCross
+  '最大收盘回撤：'+maxDrawdownSinceCross
 );
 
 // 四、1小时短线动能与多周期联动
@@ -818,7 +824,7 @@ function renderAnalysisSections(items){
     number.className='num';
     number.textContent=match?match[1]:'';
     const label=document.createElement('span');
-    label.textContent=match?match[2]:heading;
+    label.textContent=match?match[1]+'、'+match[2]:heading;
     title.append(number,label);
     const content=document.createElement('p');
     content.textContent=body;
@@ -829,10 +835,16 @@ function renderAnalysisSections(items){
 renderAnalysisSections(lines);
 
     let a=[];
-    if(Number.isFinite(p.resistance)&&price>p.resistance)a.push('价格高于近期局部高点阻力参考 '+fmt(p.resistance)+'；需观察收盘能否确认突破。');
-    else if(Number.isFinite(p.resistance))a.push('上方动态阻力参考：'+fmt(p.resistance));
-    if(Number.isFinite(p.support)&&price<p.support)a.push('价格低于近期局部低点支撑参考 '+fmt(p.support)+'；需留意破位风险。');
-    else if(Number.isFinite(p.support))a.push('下方动态支撑参考：'+fmt(p.support));
+    if(Number.isFinite(p.resistance)){
+      const resistanceDistance=(p.resistance-price)/price*100;
+      if(price>p.resistance)a.push('价格高于近期局部高点阻力参考 '+fmt(p.resistance)+'（现价已高于该位 '+Math.abs(resistanceDistance).toFixed(2)+'%）；需观察收盘能否确认突破。');
+      else a.push('上方动态阻力参考：'+fmt(p.resistance)+'（距离现价 '+resistanceDistance.toFixed(2)+'%）。');
+    }
+    if(Number.isFinite(p.support)){
+      const supportDistance=(price-p.support)/price*100;
+      if(price<p.support)a.push('价格低于近期局部低点支撑参考 '+fmt(p.support)+'（现价已低于该位 '+Math.abs(supportDistance).toFixed(2)+'%）；需留意破位风险。');
+      else a.push('下方动态支撑参考：'+fmt(p.support)+'（距离现价 '+supportDistance.toFixed(2)+'%）。');
+    }
     if(rv1hClosed>=70)a.push('1小时RSI 已进入偏热区域，注意短线回撤。');
     if(rv1hClosed<=30)a.push('1小时RSI 已进入偏弱区域，等待反转确认。');
     if(!a.length)a.push('暂未触发上述条件。关键价位来自近期局部高低点，可能随新 K 线变化。');
