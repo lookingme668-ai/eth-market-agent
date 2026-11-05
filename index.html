@@ -671,10 +671,15 @@ else if(bearVotes1h>=2)trend1h='短线偏空';
 const emaText1h=emaVote1h===1?'收盘价高于EMA20，且EMA20高于EMA50，短线结构偏多。':
   emaVote1h===-1?'收盘价低于EMA20，且EMA20低于EMA50，短线结构偏空。':
   '价格与EMA20/EMA50排列不一致，短线趋势结构尚未确认。';
-const ema200Text1h=Number.isFinite(e200_1hClosed)?
-  (close1hClosed>e200_1hClosed?'价格位于EMA200上方，中期背景偏强。':
-   close1hClosed<e200_1hClosed?'价格位于EMA200下方，中期背景偏弱。':'价格接近EMA200。'):
-  'EMA200数据不足，暂无法判断。';
+const ema200Text1h=Number.isFinite(e200_1hClosed)&&Number.isFinite(close1hClosed)&&Number.isFinite(price)?
+  '最近已完成1小时K线收盘价'+
+  (close1hClosed>e200_1hClosed?'高于':close1hClosed<e200_1hClosed?'低于':'接近')+
+  'EMA200；实时ETH价格'+
+  (price>e200_1hClosed?'高于':price<e200_1hClosed?'低于':'接近')+
+  'EMA200（'+fmt(e200_1hClosed)+'），实时价格'+
+  (price>e200_1hClosed?'位于该均线上方，实时位置偏强。':
+   price<e200_1hClosed?'位于该均线下方，实时位置偏弱。':'正处于该均线附近。'):
+  'EMA200、最近已完成K线收盘价或实时价格数据不足，暂无法判断。';
 
 const rsiText1h=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断。':
   rv1hClosed<30?'明显偏弱，处于超卖区域，等待止跌确认。':
