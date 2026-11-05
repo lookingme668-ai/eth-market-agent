@@ -410,14 +410,31 @@ function pivots(candles){
   return {support:lows.filter(x=>x<candles.at(-1).close).slice(-8).sort((a,b)=>b-a)[0],
           resistance:highs.filter(x=>x>candles.at(-1).close).slice(-8).sort((a,b)=>a-b)[0]};
 }
-function draw(c){
+function draw(c,ema200Values=[]){
   const el=$('chart'),ctx=el.getContext('2d'),w=el.width,h=el.height;
-  ctx.clearRect(0,0,w,h);const vals=c.map(x=>x.close),min=Math.min(...vals),max=Math.max(...vals),pad=22;
+  ctx.clearRect(0,0,w,h);
+  const vals=c.map(x=>x.close);
+  const validEma=ema200Values.filter(Number.isFinite);
+  const min=Math.min(...vals,...validEma),max=Math.max(...vals,...validEma),pad=22;
+  const y=v=>pad+(max-v)/(max-min||1)*(h-2*pad);
   ctx.strokeStyle='#26324a';ctx.lineWidth=1;
-  for(let i=0;i<5;i++){let y=pad+i*(h-2*pad)/4;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
-  ctx.beginPath();vals.forEach((v,i)=>{let x=i*(w-1)/(vals.length-1),y=pad+(max-v)/(max-min||1)*(h-2*pad);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+  for(let i=0;i<5;i++){let yy=pad+i*(h-2*pad)/4;ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
+  ctx.beginPath();vals.forEach((v,i)=>{let x=i*(w-1)/(vals.length-1),yy=y(v);i?ctx.lineTo(x,yy):ctx.moveTo(x,yy)});
   ctx.strokeStyle='#7aa7ff';ctx.lineWidth=2.5;ctx.stroke();
+
+  // 1小时EMA200：只使用已完成K线计算，与4小时图采用相同紫色
+  if(ema200Values.length===vals.length){
+    ctx.beginPath();let started=false;
+    ema200Values.forEach((v,i)=>{
+      if(!Number.isFinite(v))return;
+      const x=i*(w-1)/(ema200Values.length-1);
+      if(!started){ctx.moveTo(x,y(v));started=true;}else ctx.lineTo(x,y(v));
+    });
+    ctx.strokeStyle='#c084fc';ctx.lineWidth=2;ctx.stroke();
+  }
+
   ctx.fillStyle='#91a0ba';ctx.font='13px system-ui';ctx.fillText(fmt(max),8,15);ctx.fillText(fmt(min),8,h-5);
+  ctx.fillStyle='#c084fc';ctx.font='12px system-ui';ctx.fillText('EMA200',w-78,18);
 }
 function draw4h(candles,liveCandle=null){
   const el=$('chart4h');
@@ -444,10 +461,12 @@ function draw4h(candles,liveCandle=null){
 
   const ema20=calcEMA(candles,20);
   const ema50=calcEMA(candles,50);
+  const ema200=calcEMA(candles,200);
   const displayCandles=liveCandle?[...candles,liveCandle]:candles;
 
-  const min=Math.min(...displayCandles.map(x=>x.low));
-  const max=Math.max(...displayCandles.map(x=>x.high));
+  const emaValuesForScale=[...ema20,...ema50,...ema200].filter(Number.isFinite);
+  const min=Math.min(...displayCandles.map(x=>x.low),...emaValuesForScale);
+  const max=Math.max(...displayCandles.map(x=>x.high),...emaValuesForScale);
   const range=max-min||1;
   const y=v=>pad+(max-v)/range*(h-2*pad);
 
@@ -519,6 +538,7 @@ function draw4h(candles,liveCandle=null){
 
   drawLine(ema20,'#f5c542');
   drawLine(ema50,'#4da3ff');
+  drawLine(ema200,'#c084fc');
 
   // 实时价格虚线及价格标签
   if(liveCandle&&Number.isFinite(liveCandle.close)){
@@ -532,9 +552,14 @@ function draw4h(candles,liveCandle=null){
     ctx.lineTo(w,liveY);
     ctx.stroke();
     ctx.restore();
-    ctx.fillStyle='#b58cff';
+    const liveLabel='实时 '+fmt(liveCandle.close);
     ctx.font='12px system-ui';
-    ctx.fillText('实时 '+fmt(liveCandle.close),w-150,Math.max(14,liveY-6));
+    const labelX=8,labelY=Math.max(34,Math.min(h-22,liveY-20));
+    const labelWidth=ctx.measureText(liveLabel).width+10;
+    ctx.fillStyle='rgba(17,26,44,0.92)';
+    ctx.fillRect(labelX,labelY-12,labelWidth,18);
+    ctx.fillStyle='#b58cff';
+    ctx.fillText(liveLabel,labelX+5,labelY+1);
   }
 
   // 价格范围标签
@@ -544,10 +569,13 @@ function draw4h(candles,liveCandle=null){
   ctx.fillText(fmt(min),8,h-5);
 
   // 均线图例
+  ctx.font='12px system-ui';
   ctx.fillStyle='#f5c542';
-  ctx.fillText('EMA20',w-145,18);
+  ctx.fillText('EMA20',w-220,18);
   ctx.fillStyle='#4da3ff';
-  ctx.fillText('EMA50',w-75,18);
+  ctx.fillText('EMA50',w-145,18);
+  ctx.fillStyle='#c084fc';
+  ctx.fillText('EMA200',w-78,18);
 }
   function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
 
@@ -975,7 +1003,7 @@ if(livePriceBelowBoth&&closedCandleTrend==='强势偏多'){
     $('trend4hDisplay').textContent=trendLabel;
     $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
     $('support').textContent=moneyOrNA(p.support);$('resistance').textContent=moneyOrNA(p.resistance);
-    draw(c.slice(-168));
+    draw(closedCandles1h.slice(-168),emaSeries(closes1hClosed,200).slice(-168));
     draw4h(candles4h.slice(-180),liveCandle4h);
     let lines=[];
    
