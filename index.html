@@ -252,16 +252,20 @@ function macdHistTrail(a,count=4){
 function describeMacdRun(values){
   if(values.length<4)return '连续动能数据不足，暂无法判断。';
   const tail=values.slice(-4);
-  const abs=tail.map(Math.abs);
   const allPositive=tail.every(v=>v>0);
   const allNegative=tail.every(v=>v<0);
-  const expanding=abs[1]>abs[0]&&abs[2]>abs[1]&&abs[3]>abs[2];
-  const contracting=abs[1]<abs[0]&&abs[2]<abs[1]&&abs[3]<abs[2];
-  if(allPositive&&expanding)return '连续3根已完成K线正柱扩大，多头动能持续增强。';
-  if(allPositive&&contracting)return '连续3根已完成K线正柱收缩，多头动能持续减弱。';
-  if(allNegative&&expanding)return '连续3根已完成K线负柱扩大，空头动能持续增强。';
-  if(allNegative&&contracting)return '连续3根已完成K线负柱收缩，空头动能持续减弱。';
-  return '近3根已完成K线的MACD柱体方向或幅度不一致，暂未形成连续动能趋势。';
+  if(!allPositive&&!allNegative)return '最近3根已完成K线的MACD柱体曾跨越零轴，动能方向正在转换，暂不归类为连续增强或减弱。';
+  const magnitudes=tail.map(Math.abs);
+  const first=magnitudes[0],last=magnitudes[3];
+  const scale=Math.max(first,last,1e-9);
+  const relativeChange=(last-first)/scale;
+  const upCount=magnitudes.slice(1).filter((v,i)=>v>magnitudes[i]*1.01).length;
+  const downCount=magnitudes.slice(1).filter((v,i)=>v<magnitudes[i]*0.99).length;
+  const side=allPositive?'多头':'空头';
+  const column=allPositive?'正柱':'负柱';
+  if(relativeChange>=0.05&&upCount>=2)return '最近3根已完成K线'+column+'整体扩大，'+side+'动能总体增强（期间允许小幅波动）。';
+  if(relativeChange<=-0.05&&downCount>=2)return '最近3根已完成K线'+column+'整体收缩，'+side+'动能总体减弱（期间允许小幅波动）。';
+  return '最近3根已完成K线'+column+'整体变化不大或方向反复，暂未形成明确的连续动能趋势。';
 }
 function macd(a){
   if(a.length<34){
@@ -693,8 +697,13 @@ else if(bearVotes>=2)trend='偏空';
 
 const ema200CloseContext=close4h>e200_4h?'最近已完成4小时收盘位于EMA200上方':close4h<e200_4h?'最近已完成4小时收盘位于EMA200下方':'最近已完成4小时收盘接近EMA200';
 const ema200LivePressure=Number.isFinite(ema200DistancePct)&&ema200DistancePct<0;
-const ema200Caveat=ema200LivePressure?'；但实时价格仍低于EMA200，长期均线压力尚未解除':
-  Number.isFinite(ema200DistancePct)&&ema200DistancePct>=0?'；实时价格已位于EMA200上方，仍需观察收盘能否持续站稳':'';
+const ema200Caveat=ema200LivePressure?'实时价格仍低于EMA200，长期均线压力尚未解除':
+  Number.isFinite(ema200DistancePct)&&ema200DistancePct>=0?'实时价格已位于EMA200上方，仍需观察收盘能否持续站稳':'';
+const trendLabel=(trend==='强势偏多'?'短中期强势偏多':
+  trend==='强势偏空'?'短中期强势偏空':
+  trend==='偏多'?'短中期偏多':
+  trend==='偏空'?'短中期偏空':'短中期震荡 / 等待确认')+
+  (ema200LivePressure?'（长期EMA200仍有压力）':'');
 const strong=trend==='强势偏多'?'短中期EMA结构、RSI与MACD三项一致偏多':
   trend==='强势偏空'?'短中期EMA结构、RSI与MACD三项一致偏空':
   trend==='偏多'?'多数短中期指标支持偏多，仍需留意指标分歧':
@@ -719,9 +728,9 @@ if(fourHourBull&&oneHourBull){
   timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待更多收盘确认。';
 }
 
-const emaText=emaVote===1?'多头排列，收盘价位于EMA20上方，趋势偏多。':
-  emaVote===-1?'空头排列，收盘价位于EMA20下方，趋势偏空。':
-  '价格与EMA20/EMA50排列尚未形成一致方向。';
+const emaText=emaVote===1?'短中期结构偏多：最近已完成4小时收盘价高于EMA20，且EMA20高于EMA50；这不代表EMA200也已形成多头排列。':
+  emaVote===-1?'短中期结构偏空：最近已完成4小时收盘价低于EMA20，且EMA20低于EMA50；EMA200长期背景需另行判断。':
+  '价格与EMA20/EMA50排列尚未形成一致方向，短中期结构仍待确认。';
 
 const rsiText=!Number.isFinite(rv4h)?'数据不足，暂无法判断。':
   rv4h<30?'明显偏弱，处于超卖区域，留意潜在反弹。':
@@ -769,7 +778,7 @@ if(trend==='强势偏多'||trend==='强势偏空'){
     $('price').textContent=fmt(price);$('updated').textContent='更新时间：'+new Date().toLocaleString();
     $('change').textContent=Number.isFinite(change)?pct(change):'暂不可用';$('change').className='v '+(Number.isFinite(change)?(change>=0?'green':'red'):'amber');
     $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
-    $('trend').textContent=trend;$('trend').className='v '+(trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
+    $('trend').textContent=trendLabel;$('trend').className='v '+(trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
     $('trendWhy').textContent=strongWithLongTerm;
     $('rsi').textContent=Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1):'—';
     $('rsiHint').textContent=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断':rv1hClosed>=70?'偏热，留意回调':rv1hClosed<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
@@ -785,7 +794,7 @@ if(trend==='强势偏多'||trend==='强势偏空'){
     $('ema200_4h').textContent=Number.isFinite(e200_4h)?fmt(e200_4h):'暂不可计算';
     $('rsi4h').textContent=Number.isFinite(rv4h)?rv4h.toFixed(1):'暂不可计算';
     $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'柱体为负')+'（'+m4h.hist.toFixed(3)+'）':'暂不可计算';
-    $('trend4hDisplay').textContent=trend;
+    $('trend4hDisplay').textContent=trendLabel;
     $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
     $('support').textContent=moneyOrNA(p.support);$('resistance').textContent=moneyOrNA(p.resistance);
     draw(c.slice(-168));
@@ -796,9 +805,9 @@ if(trend==='强势偏多'||trend==='强势偏空'){
 // 一、4小时市场趋势
 lines.push('【一、4小时市场趋势】');
 lines.push(
-  '综合趋势：'+trend+'。'+strong+'。'+'\n'+
+  '综合趋势：'+trendLabel+'。'+strong+'。'+'\n'+
   'EMA结构：'+emaText+'\n'+
-  'EMA200长期背景：'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50。':'短中期EMA20尚未高于EMA50。')+ema200Caveat+'。'+'\n'+
+  'EMA200长期背景：'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50。':'短中期EMA20尚未高于EMA50。')+(ema200Caveat?' '+ema200Caveat+'。':'')+'\n'+
   '实时价格距离EMA200：'+ema200BackgroundText+'（现价为实时行情，EMA200按最近已完成4小时K线计算。）'+'\n'+
   'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+rsiText+(rsiChangeText?' '+rsiChangeText:''):rsiText)+'\n'+
   'MACD：'+macdText+'\n'+
@@ -858,7 +867,7 @@ function renderAnalysisSections(items){
   highlightTitle.className='highlight-title';
   highlightTitle.textContent='多周期重点判断';
   const highlight4h=document.createElement('p');
-  highlight4h.textContent='4小时：'+trend+'；'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+ema200Caveat+'。';
+  highlight4h.textContent='4小时：'+trendLabel+'；'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+ema200Caveat+'。';
   const highlight1h=document.createElement('p');
   highlight1h.textContent='1小时：'+trend1h+'。';
   const highlightDistance=document.createElement('p');
