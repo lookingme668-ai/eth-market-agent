@@ -124,7 +124,23 @@ let historicalHourlyCache=null;
 let historicalHourlyPromise=null;
 
 async function getHistoricalHourlyCandles(days=60){
-  if(historicalHourlyCache)return historicalHourlyCache;
+  // 历史主体只下载一次；每次刷新补取最近48小时，确保新收盘K线及时进入指标
+  if(historicalHourlyCache){
+    const nowSec=Math.floor(Date.now()/1000);
+    const endSec=Math.floor(nowSec/3600)*3600;
+    const startSec=endSec-48*3600;
+    const url=API+'/products/ETH-USD/candles?granularity=3600&start='
+      +encodeURIComponent(new Date(startSec*1000).toISOString())
+      +'&end='
+      +encodeURIComponent(new Date(endSec*1000).toISOString());
+    const recentRows=await getJSON(url);
+    const byTime=new Map(historicalHourlyCache.map(x=>[x.time,x]));
+    for(const x of recentRows){
+      byTime.set(x[0],{time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4],volume:+x[5]});
+    }
+    historicalHourlyCache=[...byTime.values()].sort((a,b)=>a.time-b.time);
+    return historicalHourlyCache;
+  }
   if(historicalHourlyPromise)return historicalHourlyPromise;
 
   historicalHourlyPromise=(async()=>{
@@ -300,14 +316,14 @@ function draw4h(candles){
 
   // 计算EMA20和EMA50
   function calcEMA(data,period){
+    const result=Array(data.length).fill(NaN);
+    if(data.length<period)return result;
     const k=2/(period+1);
-    let result=[];
-    let value=data[0].close;
-    result.push(value);
-
-    for(let i=1;i<data.length;i++){
+    let value=data.slice(0,period).reduce((sum,c)=>sum+c.close,0)/period;
+    result[period-1]=value;
+    for(let i=period;i<data.length;i++){
       value=data[i].close*k+value*(1-k);
-      result.push(value);
+      result[i]=value;
     }
     return result;
   }
@@ -357,10 +373,12 @@ function draw4h(candles){
   // 绘制EMA均线
   function drawLine(values,color){
     ctx.beginPath();
+    let started=false;
     values.forEach((v,i)=>{
+      if(!Number.isFinite(v))return;
       const x=step*(i+0.5);
       const yy=y(v);
-      if(i===0)ctx.moveTo(x,yy);
+      if(!started){ctx.moveTo(x,yy);started=true;}
       else ctx.lineTo(x,yy);
     });
     ctx.strokeStyle=color;
