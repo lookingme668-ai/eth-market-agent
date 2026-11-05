@@ -1471,7 +1471,8 @@ function renderAnalysisSections(items){
     const title=document.createElement('h3');
     const number=document.createElement('span');
     number.className='num';
-    number.textContent=match?match[1]+'、':'';
+    const displayNumbers={'四':'一','一':'二','二':'三','三':'四','五':'五','六':'六'};
+    number.textContent=match?(displayNumbers[match[1]]||match[1])+'、':'';
     const label=document.createElement('span');
     label.textContent=match?match[2]:heading;
     title.append(number,label);
