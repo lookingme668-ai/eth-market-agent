@@ -175,12 +175,25 @@ async function getHistoricalHourlyCandles(days=60){
   return v;
 }
 function rsi(a,p=14){
-  if(a.length<=p)return NaN;
+  if(!Array.isArray(a)||a.length<=p)return NaN;
   let g=0,l=0;
-  for(let i=1;i<=p;i++){let d=a[i]-a[i-1];if(d>0)g+=d;else l-=d;}
-  g/=p;l/=p;
-  for(let i=p+1;i<a.length;i++){let d=a[i]-a[i-1];g=(g*(p-1)+Math.max(d,0))/p;l=(l*(p-1)+Math.max(-d,0))/p;}
-  return l===0?100:100-100/(1+g/l);
+  for(let i=1;i<=p;i++){
+    const d=a[i]-a[i-1];
+    if(d>0)g+=d;
+    else l-=d;
+  }
+  g/=p;
+  l/=p;
+  for(let i=p+1;i<a.length;i++){
+    const d=a[i]-a[i-1];
+    g=(g*(p-1)+Math.max(d,0))/p;
+    l=(l*(p-1)+Math.max(-d,0))/p;
+  }
+  // 平盘时平均涨幅和平均跌幅均为0，RSI按中性值50处理
+  if(g===0&&l===0)return 50;
+  if(l===0)return 100;
+  if(g===0)return 0;
+  return 100-100/(1+g/l);
 }
 function emaSeries(a,p){
   const result=Array(a.length).fill(NaN);
@@ -199,7 +212,7 @@ function emaSeries(a,p){
 }
 
 function macd(a){
-  if(a.length<35){
+  if(a.length<34){
     return {line:NaN,signal:NaN,hist:NaN};
   }
 
@@ -234,7 +247,8 @@ function aggregate4h(hourly){
     groups.get(start).push(candle);
   }
 
-  const currentBucket=Math.floor(Date.now()/14400000)*14400;
+  const nowSec=Math.floor(Date.now()/1000);
+  const currentBucket=Math.floor(nowSec/14400)*14400;
 
   return [...groups.entries()]
     .filter(([start,items])=>{
@@ -501,10 +515,11 @@ const prevRv4h=rsi(closes4h.slice(0,-1));
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
 
-// 1小时短线综合判断只使用已经收盘的K线，避免未完成K线造成信号反复变化
+// 1小时指标统一使用60天历史数据，并排除当前尚未完成的小时K线
 const currentHourStart=Math.floor(Date.now()/3600000)*3600;
-const closedCandles1h=c.filter(x=>x.time<currentHourStart);
+const closedCandles1h=historicalHourly.filter(x=>x.time<currentHourStart);
 const closes1hClosed=closedCandles1h.map(x=>x.close);
+if(closes1hClosed.length<250)throw new Error('1小时历史K线不足，暂时无法可靠计算EMA200、RSI和MACD');
 const close1hClosed=closes1hClosed[closes1hClosed.length-1];
 const e20_1hClosed=ema(closes1hClosed,20);
 const e50_1hClosed=ema(closes1hClosed,50);
@@ -685,8 +700,8 @@ if(trend==='强势偏多'||trend==='强势偏空'){
     $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
     $('trend').textContent=trend;$('trend').className='v '+(trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
     $('trendWhy').textContent=strong;
-    $('rsi').textContent=Number.isFinite(rv)?rv.toFixed(1):'—';
-    $('rsiHint').textContent=rv>=70?'偏热，留意回调':rv<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
+    $('rsi').textContent=Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1):'—';
+    $('rsiHint').textContent=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断':rv1hClosed>=70?'偏热，留意回调':rv1hClosed<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
     // 指标面板统一使用各周期最近一根已完成K线，避免未收盘数据导致数值跳动
     $('ema20').textContent=moneyOrNA(e20_1hClosed);
     $('ema50').textContent=moneyOrNA(e50_1hClosed);
@@ -766,8 +781,8 @@ $('analysis').textContent=lines.join('\n\n');
     else if(Number.isFinite(p.resistance))a.push('上方动态阻力参考：'+fmt(p.resistance));
     if(Number.isFinite(p.support)&&price<p.support)a.push('价格低于近期局部低点支撑参考 '+fmt(p.support)+'；需留意破位风险。');
     else if(Number.isFinite(p.support))a.push('下方动态支撑参考：'+fmt(p.support));
-    if(rv>=70)a.push('RSI 已进入偏热区域，注意短线回撤。');
-    if(rv<=30)a.push('RSI 已进入偏弱区域，等待反转确认。');
+    if(rv1hClosed>=70)a.push('1小时RSI 已进入偏热区域，注意短线回撤。');
+    if(rv1hClosed<=30)a.push('1小时RSI 已进入偏弱区域，等待反转确认。');
     if(!a.length)a.push('暂未触发上述条件。关键价位来自近期局部高低点，可能随新 K 线变化。');
     $('alerts').textContent=a.join('\n\n');
     $('dot').className='dot ok';$('status').textContent='行情已连接 · 每30秒自动刷新';
