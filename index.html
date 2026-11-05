@@ -14,7 +14,7 @@ button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
 .trend-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:-8px 0 22px}
 .trend-card .v{font-size:17px;line-height:1.4;margin-top:6px}
-.trend-card .small{line-height:1.5}
+.trend-card .small{line-height:1.65;white-space:pre-line;font-size:12px;margin-top:10px}
 @media(max-width:1000px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .card{background:rgba(19,27,46,.94);border:1px solid var(--line);border-radius:15px;padding:16px;min-width:0}
 .k{color:var(--muted);font-size:12px}.v{font-size:23px;font-weight:700;margin-top:6px;overflow-wrap:anywhere}.small{font-size:12px;color:var(--muted);margin-top:4px}
@@ -835,10 +835,15 @@ const trend1hLabel=live1hBelowAll?
   live1hAboveAll?
     '实时走势明显偏强（价格高于EMA20/EMA50/EMA200；等待1小时收盘确认）':
     trend1h+'（依据最近已完成1小时K线）';
-const trend1hWhy='已完成1小时K线：'+trend1h+'；实时价格'+
-  (live1hBelowAll?'低于三条EMA':live1hAboveAll?'高于三条EMA':
-   live1hBelow20&&live1hBelow50?'低于EMA20/EMA50':
-   live1hAbove20&&live1hAbove50?'高于EMA20/EMA50':'与短中期均线位置分化')+'。';
+const trend1hWhy=[
+  '已完成K线综合判断：'+trend1h+'。'+consensusText1h,
+  'EMA结构：'+emaText1h,
+  'EMA200长期背景：'+ema200Text1h,
+  '实时均线距离：'+liveEmaDistances1h,
+  'RSI（14）：'+(Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1)+'。':'')+rsiText1h+(rsiChangeText1h?' '+rsiChangeText1h:''),
+  'MACD（12,26,9）：'+macdText1h,
+  '判断依据：使用最近一根已完成1小时K线计算指标；实时价格位置单独显示，未收盘K线不提前作为确认信号。'
+].join('\\n');
 
 
     // 获取上一根4小时K线的EMA数值
@@ -1052,7 +1057,15 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
     $('change').textContent=Number.isFinite(change)?pct(change):'暂不可用';$('change').className='v '+(Number.isFinite(change)?(change>=0?'green':'red'):'amber');
     $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
     $('trend').textContent=trendLabel;$('trend').className='v '+(livePriceBelowAllThree?'red':livePriceAboveAllThree?'green':trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
-    $('trendWhy').textContent='已完成4小时K线：'+closedCandleTrend+'；'+(close4h<e200_4h?'收盘低于EMA200':'收盘未低于EMA200')+'；'+(livePriceBelowAllThree?'实时价格低于三条EMA':livePriceAboveAllThree?'实时价格高于三条EMA':livePriceBelowBoth?'实时价格低于EMA20/EMA50':livePriceAboveBoth?'实时价格高于EMA20/EMA50':'实时价格与短中期均线位置分化')+'。';
+    $('trendWhy').textContent=[
+      '已完成K线综合判断：'+closedCandleTrend+'。'+strong,
+      'EMA结构：'+emaText,
+      'EMA200长期背景：'+ema200BackgroundText+(ema200Caveat?'；'+ema200Caveat:''),
+      '实时均线距离：'+liveEmaDistances4h,
+      'RSI（14）：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。':'')+rsiText+(rsiChangeText?' '+rsiChangeText:''),
+      'MACD（12,26,9）：'+macdText,
+      '综合解读：'+consensusText
+    ].join('\\n');
     $('trend1h').textContent=trend1hLabel;
     $('trend1h').className='v '+(live1hBelowAll?'red':live1hAboveAll?'green':trend1h.includes('偏多')?'green':trend1h.includes('偏空')?'red':'amber');
     $('trendWhy1h').textContent=trend1hWhy;
