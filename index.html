@@ -776,9 +776,7 @@ else if(bearVotes1h===3)trend1h='短线强势偏空';
 else if(bullVotes1h>=2)trend1h='短线偏多';
 else if(bearVotes1h>=2)trend1h='短线偏空';
 
-const emaText1h=emaVote1h===1?'收盘价高于EMA20，且EMA20高于EMA50，短线结构偏多。':
-  emaVote1h===-1?'收盘价低于EMA20，且EMA20低于EMA50，短线结构偏空。':
-  '价格与EMA20/EMA50排列不一致，短线趋势结构尚未确认。';
+const emaText1h=(e20_1hClosed>e50_1hClosed?'EMA20高于EMA50，短中期均线排列偏多':e20_1hClosed<e50_1hClosed?'EMA20低于EMA50，短中期均线排列偏空':'EMA20与EMA50接近，短中期均线排列暂不明确')+'；最近已完成1小时收盘价'+(close1hClosed>e20_1hClosed?'高于EMA20':close1hClosed<e20_1hClosed?'低于EMA20':'接近EMA20')+'，'+(close1hClosed>e50_1hClosed?'高于EMA50':close1hClosed<e50_1hClosed?'低于EMA50':'接近EMA50')+'。均线排列与收盘价位置分别评估。';
 const ema200Text1h=formatEma200Context('1小时',close1hClosed,e200_1hClosed,price);
 const liveEmaDistances1h=formatLiveEmaDistances(price,[['EMA20',e20_1hClosed],['EMA50',e50_1hClosed],['EMA200',e200_1hClosed]]);
 
@@ -830,10 +828,12 @@ const live1hAbove50=Number.isFinite(price)&&Number.isFinite(e50_1hClosed)&&price
 const live1hAbove200=Number.isFinite(price)&&Number.isFinite(e200_1hClosed)&&price>e200_1hClosed;
 const live1hBelowAll=live1hBelow20&&live1hBelow50&&live1hBelow200;
 const live1hAboveAll=live1hAbove20&&live1hAbove50&&live1hAbove200;
+const close1hBelowEma200=Number.isFinite(close1hClosed)&&Number.isFinite(e200_1hClosed)&&close1hClosed<e200_1hClosed;
+const close1hAboveEma200=Number.isFinite(close1hClosed)&&Number.isFinite(e200_1hClosed)&&close1hClosed>e200_1hClosed;
 const trend1hLabel=live1hBelowAll?
-  '实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待1小时收盘确认）':
+  (close1hBelowEma200?'实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待1小时收盘确认）':'实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待1小时收盘确认）'):
   live1hAboveAll?
-    '实时走势明显偏强（价格高于EMA20/EMA50/EMA200；等待1小时收盘确认）':
+    (close1hAboveEma200?'实时走势明显偏强（价格高于EMA20/EMA50/EMA200；EMA200收盘站上已确认，短中期状态等待1小时收盘确认）':'实时走势明显偏强（价格高于EMA20/EMA50/EMA200；等待1小时收盘确认）'):
     trend1h+'（依据最近已完成1小时K线）';
 const trend1hWhy=[
   '已完成K线综合判断：'+trend1h+'。'+consensusText1h,
@@ -910,7 +910,7 @@ const livePricePositionText=livePriceBelowAllThree?'实时价格低于EMA20、EM
   Number.isFinite(price)&&Number.isFinite(e20_4h)&&Number.isFinite(e50_4h)?
     '实时价格位于EMA20与EMA50之间，短中期均线位置分化':
     '实时价格或短中期均线数据不足，暂无法判断实时均线位置';
-const livePriceTrendCaveat=livePriceBelowAllThree?'实时价格已跌破EMA20/EMA50/EMA200，当前实时走势偏弱，等待4小时收盘确认':
+const livePriceTrendCaveat=livePriceBelowAllThree?(close4hBelowEma200?'实时价格低于EMA20/EMA50/EMA200，且最近已完成4小时收盘低于EMA200，长期均线跌破已确认；短中期均线状态仍等待收盘确认':'实时价格已跌破EMA20/EMA50/EMA200，当前实时走势偏弱，等待4小时收盘确认'):
   livePriceAboveAllThree?'实时价格已站上EMA20/EMA50/EMA200，仍需等待4小时收盘确认':
   livePriceBelowBoth?'实时价格低于EMA20/EMA50，短线回调承压':
   livePriceAboveBoth?'实时价格已高于EMA20/EMA50，短线位置偏强':
@@ -926,12 +926,14 @@ const ema200Caveat=livePriceBelowEma200&&close4h>e200_4h?
       '实时价格已回到EMA200上方，但最近已完成4小时收盘仍在其下，尚未确认有效收复':
       livePriceAboveEma200?
         '实时价格已位于EMA200上方，仍需观察4小时收盘能否持续站稳':'';
+const close4hBelowEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h<e200_4h;
+const close4hAboveEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h>e200_4h;
 const trendLabel=livePriceBelowAllThree?
   (closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多'?
-    '已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格已跌破EMA20/EMA50/EMA200；等待收盘确认）':
+    (close4hBelowEma200?'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）'):
    closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
     '已完成4小时K线指标偏空，实时走势也明显偏弱（价格低于EMA20/EMA50/EMA200）':
-    '已完成4小时K线方向未明，实时走势明显偏弱（价格已跌破EMA20/EMA50/EMA200；等待收盘确认）'):
+    (close4hBelowEma200?'已完成4小时K线方向未明，实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线方向未明，实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）')):
   livePriceAboveAllThree?
   (closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
     '已完成4小时K线指标仍偏空，但实时走势反弹明显（价格已站上EMA20/EMA50/EMA200；等待收盘确认）':
@@ -963,6 +965,10 @@ if(fourHourBull&&oneHourBull){
   timeframeText='4小时偏多、1小时偏空，可能是上涨趋势中的短线回调，暂不能仅凭1小时走弱认定大趋势反转。';
 }else if(fourHourBear&&oneHourBull){
   timeframeText='4小时偏空、1小时偏多，可能是下跌趋势中的短线反弹，暂不能仅凭1小时走强认定大趋势反转。';
+}else if(!fourHourBull&&!fourHourBear&&oneHourBear){
+  timeframeText='4小时已完成K线方向未明，但实时走势偏弱；1小时短线偏空。短线下行信号较明确，4小时整体方向仍待确认。';
+}else if(!fourHourBull&&!fourHourBear&&oneHourBull){
+  timeframeText='4小时已完成K线方向未明；1小时短线偏多。短线反弹信号较明显，4小时整体方向仍待确认。';
 }else{
   timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待更多收盘确认。';
 }
@@ -998,9 +1004,7 @@ if(fourHourBull&&oneHourBear){
 const timeframeConflictSummary='预警等级：'+timeframeConflictLevel+'。'+timeframeConflictTitle+'。'+timeframeConflictText;
 const timeframeConflictDetails=timeframeConflictSummary+'\n观察条件：'+timeframeActionText;
 
-const emaText=emaVote===1?'短中期结构偏多：最近已完成4小时收盘价高于EMA20，且EMA20高于EMA50；这不代表EMA200也已形成多头排列。':
-  emaVote===-1?'短中期结构偏空：最近已完成4小时收盘价低于EMA20，且EMA20低于EMA50；EMA200长期背景需另行判断。':
-  '价格与EMA20/EMA50排列尚未形成一致方向，短中期结构仍待确认。';
+const emaText=(e20_4h>e50_4h?'EMA20高于EMA50，短中期均线排列偏多':e20_4h<e50_4h?'EMA20低于EMA50，短中期均线排列偏空':'EMA20与EMA50接近，短中期均线排列暂不明确')+'；最近已完成4小时收盘价'+(close4h>e20_4h?'高于EMA20':close4h<e20_4h?'低于EMA20':'接近EMA20')+'，'+(close4h>e50_4h?'高于EMA50':close4h<e50_4h?'低于EMA50':'接近EMA50')+'。均线排列与收盘价位置分别评估。';
 
 const rsiText=!Number.isFinite(rv4h)?'数据不足，暂无法判断。':
   rv4h<30?'明显偏弱，处于超卖区域，留意潜在反弹；超卖不代表价格必然立即反弹。':
@@ -1096,8 +1100,7 @@ lines.push('【一、4小时市场趋势】');
 lines.push(
   '综合趋势：'+trendLabel+'。'+strong+'。'+'\n'+
   'EMA结构：'+emaText+'\n'+
-  'EMA200长期背景：'+ema200CloseContext+'；'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20尚未高于EMA50')+(ema200Caveat?'；'+ema200Caveat:'')+'。'+'\n'+
-  'EMA200背景：'+ema200BackgroundText+'\n'+
+  'EMA200长期背景：'+ema200BackgroundText+(ema200Caveat?'；'+ema200Caveat:'')+'；'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+'。'+'\n'+
   '实时价格与4小时均线距离：'+liveEmaDistances4h+'\n'+
   'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+rsiText+(rsiChangeText?' '+rsiChangeText:''):rsiText)+'\n'+
   'MACD：'+macdText+'\n'+
@@ -1121,7 +1124,7 @@ lines.push(
   '交叉后最高价：'+highestSinceCross+'\n'+
   '交叉后最低价：'+lowestSinceCross+'\n'+
   '最大上涨幅度：'+maxRiseSinceCross+'\n'+
-  '最大收盘回撤：'+maxDrawdownSinceCross
+  '最大收盘回撤（按交叉后已完成4小时K线收盘价计算，不含盘中最低价）：'+maxDrawdownSinceCross
 );
 
 // 四、1小时短线动能与多周期联动
@@ -1158,7 +1161,7 @@ function renderAnalysisSections(items){
   highlightTitle.className='highlight-title';
   highlightTitle.textContent='多周期重点判断';
   const highlight4h=document.createElement('p');
-  highlight4h.textContent='4小时：'+trendLabel+'；'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+(ema200Caveat?'；'+ema200Caveat:'')+'。';
+  highlight4h.textContent='4小时：'+trendLabel+'；'+(e20_4h>e50_4h?'EMA20高于EMA50，短中期均线排列偏多':'EMA20未高于EMA50，短中期均线排列尚未偏多')+'。';
   const highlight1h=document.createElement('p');
   highlight1h.textContent='1小时：'+trend1h+'。';
   const highlightDistance4h=document.createElement('p');
