@@ -624,7 +624,7 @@ const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
 const ema200DistancePct=Number.isFinite(price)&&Number.isFinite(e200_4h)&&e200_4h!==0?(price/e200_4h-1)*100:NaN;
 const ema200BackgroundText=Number.isFinite(ema200DistancePct)?
-  (ema200DistancePct>=0?'现价已位于4小时EMA200上方，距离约'+pct(ema200DistancePct)+'。':'现价仍低于4小时EMA200，距离约'+pct(ema200DistancePct)+'，长期均线仍构成上方压力。'):
+  (ema200DistancePct>=0?'现价高于4小时EMA200约'+Math.abs(ema200DistancePct).toFixed(2)+'%。':'现价低于4小时EMA200约'+Math.abs(ema200DistancePct).toFixed(2)+'%，长期均线仍构成上方压力。'):
   '现价与4小时EMA200距离暂不可计算。';
 
 // 1小时指标统一使用60天历史数据，并排除当前尚未完成的小时K线
