@@ -192,11 +192,6 @@ canvas{height:280px}
     <div class="card"><div class="k">24 小时涨跌</div><div class="v" id="change">—</div><div class="small" id="range">日内区间：—</div></div>
     <div class="card"><div class="k">RSI（14，1小时）</div><div class="v" id="rsi">—</div><div class="small" id="rsiHint">—</div></div>
   </section>
-  <section class="trend-summary">
-    <div class="card trend-card"><div class="k">趋势判断（1小时）</div><div class="v" id="trend1h">—</div><div class="small" id="trendWhy1h">等待指标</div></div>
-    <div class="card trend-card"><div class="k">趋势判断（4小时）</div><div class="v" id="trend">—</div><div class="small" id="trendWhy">等待指标</div></div>
-  </section>
-
   <section class="two chart-pair">
     <div class="card">
       <h2 class="section">ETH 价格走势（1小时 K 线）</h2>
@@ -208,6 +203,15 @@ canvas{height:280px}
   <canvas id="chart4h" width="900" height="280"></canvas>
   <div class="small">显示最近约 60 天的已完成4小时K线，并实时更新当前未收盘4小时临时K线与价格线；临时K线不参与技术指标计算。</div>
 </div>
+
+  </section>
+
+  <section class="trend-summary">
+    <div class="card trend-card"><div class="k">趋势判断（1小时）</div><div class="v" id="trend1h">—</div><div class="small" id="trendWhy1h">等待指标</div></div>
+    <div class="card trend-card"><div class="k">趋势判断（4小时）</div><div class="v" id="trend">—</div><div class="small" id="trendWhy">等待指标</div></div>
+  </section>
+
+  <section class="indicator-section">
     <div class="card">
       <h2 class="section">技术指标</h2>
       <div class="indicator-grid">
