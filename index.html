@@ -42,6 +42,139 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
 .footer{margin-top:16px;color:var(--muted);font-size:12px}
 .status{display:flex;gap:8px;align-items:center}.dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}
 @media(max-width:760px){main{padding:20px 12px 36px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.trend-summary{grid-template-columns:1fr;margin-top:0}.two{grid-template-columns:1fr}.chart-pair>.card:nth-child(3){grid-column:auto}.indicator-grid{grid-template-columns:1fr}.indicator-volume{grid-column:auto}canvas{height:220px}.v{font-size:20px}}
+
+/* ===== 专业版视觉层：只调整呈现，不改动行情与指标计算 ===== */
+:root{
+  --bg:#080e1b;
+  --panel:#111c30;
+  --muted:#9aa9c0;
+  --line:#263750;
+  --text:#edf4ff;
+  --green:#35d3a2;
+  --red:#ff7188;
+  --blue:#8db5ff;
+  --amber:#f2c36f;
+}
+body{
+  background:
+    radial-gradient(ellipse at 12% -12%,rgba(64,112,183,.20),transparent 38%),
+    radial-gradient(ellipse at 92% 4%,rgba(37,201,151,.07),transparent 30%),
+    var(--bg);
+  letter-spacing:.01em;
+}
+main{max-width:1320px;padding:30px 24px 56px}
+.top{
+  padding:0 0 20px;
+  border-bottom:1px solid rgba(141,181,255,.16);
+  margin-bottom:22px;
+}
+h1{font-size:27px;letter-spacing:.015em;font-weight:750}
+.sub{font-size:12px;letter-spacing:.025em}
+button{
+  background:linear-gradient(135deg,#31558b,#263f68);
+  border:1px solid #5274a7;
+  box-shadow:0 5px 16px rgba(0,0,0,.18);
+  font-weight:650;
+  transition:transform .16s ease,filter .16s ease;
+}
+button:hover{background:linear-gradient(135deg,#3c659f,#2c4a78);transform:translateY(-1px)}
+.status{font-size:13px}
+.grid{gap:14px;margin:20px 0}
+.card{
+  background:linear-gradient(160deg,rgba(20,32,53,.98),rgba(14,23,40,.98));
+  border:1px solid rgba(133,160,199,.20);
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 9px 26px rgba(0,0,0,.16);
+}
+.grid:not(.chart-pair)>.card{position:relative;overflow:hidden}
+.grid:not(.chart-pair)>.card:before{
+  content:"";position:absolute;left:0;top:0;width:100%;height:2px;
+  background:linear-gradient(90deg,rgba(141,181,255,.7),transparent 72%);
+}
+.k,.indicator-label{font-size:12px;letter-spacing:.045em;text-transform:none}
+.v{font-size:26px;line-height:1.25;font-variant-numeric:tabular-nums}
+.small{line-height:1.65}
+.trend-summary{gap:14px;margin:0 0 22px}
+.trend-card{border-top:2px solid rgba(141,181,255,.55)}
+.trend-card .v{font-size:16px;line-height:1.55;font-weight:700}
+.trend-card .small{font-size:12.5px;line-height:1.8;color:#b2bfd2}
+.chart-pair{gap:14px}
+.chart-pair>.card{padding:18px}
+.section{
+  display:flex;align-items:center;gap:10px;
+  font-size:16px;letter-spacing:.01em;margin:0 0 15px;
+}
+.section:before{
+  content:"";width:3px;height:17px;border-radius:3px;
+  background:var(--blue);display:inline-block;flex:none;
+}
+canvas{height:280px}
+.indicator-grid{gap:14px}
+.indicator-panel{
+  background:rgba(7,14,27,.48);
+  border:1px solid rgba(133,160,199,.17);
+  border-radius:12px;padding:15px;
+}
+.indicator-panel-title{font-size:14px;color:#dce8ff;margin-bottom:10px}
+.indicator-panel td{padding:11px 5px;font-size:13px}
+.indicator-panel tr:last-child td{border-bottom:0}
+.indicator-volume{background:rgba(7,14,27,.48);border-color:rgba(133,160,199,.17)}
+.analysis-layout{gap:14px;grid-template-columns:minmax(0,1.75fr) minmax(270px,.8fr)}
+.analysis-sections{gap:12px}
+.analysis-highlight{
+  background:linear-gradient(135deg,rgba(34,59,91,.72),rgba(17,32,53,.9));
+  border:1px solid rgba(141,181,255,.30);
+  border-radius:13px;padding:16px;margin-bottom:0;
+}
+.analysis-highlight .highlight-title{
+  font-size:13px;letter-spacing:.045em;text-transform:uppercase;
+  color:#a9c8ff;margin-bottom:9px;
+}
+.analysis-highlight p{font-size:13px;line-height:1.75}
+.analysis-block{
+  background:linear-gradient(155deg,rgba(13,23,40,.98),rgba(11,19,34,.98));
+  border:1px solid rgba(133,160,199,.18);
+  border-radius:13px;padding:16px;
+  box-shadow:0 5px 16px rgba(0,0,0,.10);
+}
+.analysis-block h3{font-size:14px;line-height:1.5;margin-bottom:12px}
+.analysis-block h3 .num{
+  width:27px;height:27px;border:1px solid rgba(141,181,255,.20);
+  background:rgba(64,98,148,.25);color:#b5ceff;
+}
+.analysis-block p{font-size:13px;line-height:1.9;color:#cbd7e8}
+.analysis-block[data-period="1h"]{border-top:2px solid rgba(53,211,162,.72)}
+.analysis-block[data-period="4h"]{border-top:2px solid rgba(141,181,255,.72)}
+.alerts-panel{
+  background:linear-gradient(155deg,rgba(23,34,54,.98),rgba(15,24,41,.98));
+  border-color:rgba(242,195,111,.24);
+}
+.alerts-panel .report{font-size:13px;line-height:2}
+.pill{border:1px solid rgba(141,181,255,.18);font-weight:600}
+.footer{
+  margin-top:22px;padding:15px 2px 0;
+  border-top:1px solid rgba(141,181,255,.13);
+  line-height:1.8;
+}
+@media(max-width:900px){
+  main{padding:22px 16px 42px}
+  .analysis-layout{grid-template-columns:1fr}
+}
+@media(max-width:760px){
+  main{padding:17px 12px 32px}
+  h1{font-size:23px}
+  .grid{gap:10px}
+  .card{padding:14px;border-radius:13px}
+  .v{font-size:22px}
+  .trend-summary{gap:10px}
+  .chart-pair{gap:10px}
+  .chart-pair>.card{padding:14px}
+  canvas{height:225px}
+  .analysis-block{padding:14px}
+  .analysis-highlight{padding:14px}
+}
+
 </style>
 </head>
 <body>
@@ -1181,6 +1314,8 @@ function renderAnalysisSections(items){
     const match=heading.match(/^【([一二三四五六])、(.+)】$/);
     const block=document.createElement('section');
     block.className='analysis-block'+(match&&match[1]==='六'?' wide':'');
+    if(match&&match[1]==='四')block.dataset.period='1h';
+    if(match&&match[1]==='一')block.dataset.period='4h';
     const title=document.createElement('h3');
     const number=document.createElement('span');
     number.className='num';
