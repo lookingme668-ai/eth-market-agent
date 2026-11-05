@@ -1162,13 +1162,17 @@ function renderAnalysisSections(items){
   const highlight1h=document.createElement('p');
   highlight1h.textContent='1小时：'+trend1h+'。';
   const highlightDistance4h=document.createElement('p');
-  highlightDistance4h.textContent='4小时EMA200背景：'+ema200BackgroundText+' 实时均线距离：'+liveEmaDistances4h;
+  highlightDistance4h.textContent='4小时EMA200背景：'+ema200BackgroundText;
+  const highlightEma4h=document.createElement('p');
+  highlightEma4h.textContent='4小时实时均线距离：'+liveEmaDistances4h;
   const highlightDistance1h=document.createElement('p');
-  highlightDistance1h.textContent='1小时EMA200背景：'+ema200Text1h+' 实时均线距离：'+liveEmaDistances1h;
+  highlightDistance1h.textContent='1小时EMA200背景：'+ema200Text1h;
+  const highlightEma1h=document.createElement('p');
+  highlightEma1h.textContent='1小时实时均线距离：'+liveEmaDistances1h;
   const highlightConflict=document.createElement('p');
   highlightConflict.className='conflict-warning';
   highlightConflict.textContent=timeframeConflictDetails;
-  highlight.append(highlightTitle,highlight4h,highlight1h,highlightDistance4h,highlightDistance1h,highlightConflict);
+  highlight.append(highlightTitle,highlight4h,highlightDistance4h,highlightEma4h,highlight1h,highlightDistance1h,highlightEma1h,highlightConflict);
   target.append(highlight);
   for(let i=0;i<items.length;i+=2){
     const heading=items[i]||'';
