@@ -372,7 +372,7 @@ function aggregate4h(hourly){
   if(!state)return {text:'实时价格仍在动态阻力下方，尚未形成初步上破。',level:dynamicResistance,phase:'none'};
   const locked='本次跟踪阻力位：'+fmt(state.level)+'（突破时锁定，不随动态阻力刷新而改变）。';
   if(state.phase==='waiting_close')return {text:'实时价格已越过锁定阻力，属于初步上破；等待1小时K线收盘确认。'+locked,level:state.level,phase:state.phase};
-  if(state.phase==='confirmed)return {text:'最近已完成1小时K线收盘站上锁定阻力，突破初步确认；等待价格回踩该位置并守住。'+locked,level:state.level,phase:state.phase};
+  if(state.phase==='confirmed')return {text:'最近已完成1小时K线收盘站上锁定阻力，突破初步确认；等待价格回踩该位置并守住。'+locked,level:state.level,phase:state.phase};
   if(state.phase==='retested')return {text:'价格已回踩锁定阻力附近且1小时收盘守住，等待后续收盘价突破回踩K线高点。'+locked,level:state.level,phase:state.phase};
   return {text:'突破、1小时收盘确认、回踩守住及再次向上突破均已完成，形成突破回踩确认。'+locked,level:state.level,phase:state.phase};
 }
