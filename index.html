@@ -15,6 +15,17 @@ button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px
 .card{background:rgba(19,27,46,.94);border:1px solid var(--line);border-radius:15px;padding:16px;min-width:0}
 .k{color:var(--muted);font-size:12px}.v{font-size:23px;font-weight:700;margin-top:6px;overflow-wrap:anywhere}.small{font-size:12px;color:var(--muted);margin-top:4px}
 .two{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.chart-pair{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.chart-pair>.card{min-width:0}.chart-pair>.card:nth-child(3){grid-column:1/-1}.indicator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.indicator-panel{min-width:0;padding:14px;background:#0f1729;border:1px solid var(--line);border-radius:12px}.indicator-panel-title{font-weight:700;margin:0 0 8px}.indicator-panel table{width:100%;border-collapse:collapse}.indicator-panel td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px}.indicator-panel td:first-child{color:var(--muted)}.indicator-panel td:last-child{text-align:right;font-weight:700;overflow-wrap:anywhere}.indicator-volume{grid-column:1/-1;padding:10px 14px;background:#0f1729;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}.indicator-volume .indicator-label{color:var(--muted);font-size:13px}.indicator-volume .indicator-value{font-weight:700;overflow-wrap:anywhere}.section{font-weight:700;margin:0 0 12px}
+.analysis-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,1fr);gap:12px;align-items:start}
+.analysis-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.analysis-block{min-width:0;background:#0f1729;border:1px solid var(--line);border-radius:12px;padding:14px}
+.analysis-block.wide{grid-column:1/-1}
+.analysis-block h3{font-size:14px;margin:0 0 10px;color:#dce8ff;display:flex;align-items:center;gap:8px}
+.analysis-block h3 .num{display:inline-flex;align-items:center;justify-content:center;width:25px;height:25px;border-radius:8px;background:#243653;color:#9fc0ff;font-size:12px;flex:none}
+.analysis-block p{margin:0;color:#d3dced;font-size:13px;line-height:1.8;white-space:pre-line;overflow-wrap:anywhere}
+.analysis-block p strong{color:var(--text)}
+.alerts-panel{border-color:#354766}
+.alerts-panel .report{line-height:1.9}
+@media(max-width:760px){.analysis-layout{grid-template-columns:1fr}.analysis-sections{grid-template-columns:1fr}.analysis-block.wide{grid-column:auto}}
 .pill{display:inline-block;padding:4px 9px;border-radius:999px;font-size:12px;background:#24334c;color:#d8e6ff}
 .green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}
 table{width:100%;border-collapse:collapse}td{padding:9px 4px;border-bottom:1px solid var(--line)}td:last-child{text-align:right;font-weight:600}
@@ -92,12 +103,12 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
     <div class="card"><div class="k">动态阻力参考</div><div class="v red" id="resistance">—</div><div class="small">根据近期 1小时 K线局部高点估算</div></div>
   </section>
 
-  <section class="two">
+  <section class="analysis-layout">
     <div class="card">
-      <h2 class="section">趋势分析与情景</h2>
-      <div id="analysis" class="report muted">正在计算…</div>
+      <h2 class="section">趋势分析与交易情景</h2>
+      <div id="analysis" class="analysis-sections muted">正在计算…</div>
     </div>
-    <div class="card">
+    <div class="card alerts-panel">
       <h2 class="section">关键价位提醒</h2>
       <div id="alerts" class="report muted">等待行情数据…</div>
       <p class="small">网页打开期间每 30 秒刷新。关闭网页后不会在后台监控或发送通知。</p>
@@ -785,14 +796,37 @@ lines.push('【五、4小时与1小时联动】');
 lines.push(timeframeText);
 
 // 六、交易情景与风险控制
-lines.push('【五、交易情景与风险控制】');
+lines.push('【六、交易情景与风险控制】');
 lines.push(
   '多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。\n'+
   '空头情景：价格跌破 EMA20 与动态支撑，反弹无法收复时，下行风险增加。\n'+
   '风险控制：单一指标不构成交易信号；关注收盘确认、波动幅度和仓位风险。'
 );
 
-$('analysis').textContent=lines.join('\n\n');
+// 将完整分析文字按六个主题分区展示；只改变排版，不删减分析内容
+function renderAnalysisSections(items){
+  const target=$('analysis');
+  target.replaceChildren();
+  for(let i=0;i<items.length;i+=2){
+    const heading=items[i]||'';
+    const body=items[i+1]||'';
+    const match=heading.match(/^【([一二三四五六])、(.+)】$/);
+    const block=document.createElement('section');
+    block.className='analysis-block'+(match&&(match[1]==='一'||match[1]==='四'||match[1]==='六')?' wide':'');
+    const title=document.createElement('h3');
+    const number=document.createElement('span');
+    number.className='num';
+    number.textContent=match?match[1]:'';
+    const label=document.createElement('span');
+    label.textContent=match?match[2]:heading;
+    title.append(number,label);
+    const content=document.createElement('p');
+    content.textContent=body;
+    block.append(title,content);
+    target.append(block);
+  }
+}
+renderAnalysisSections(lines);
 
     let a=[];
     if(Number.isFinite(p.resistance)&&price>p.resistance)a.push('价格高于近期局部高点阻力参考 '+fmt(p.resistance)+'；需观察收盘能否确认突破。');
