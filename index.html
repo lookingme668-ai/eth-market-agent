@@ -741,6 +741,7 @@ const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
 const ema200DistancePct=Number.isFinite(price)&&Number.isFinite(e200_4h)&&e200_4h!==0?(price/e200_4h-1)*100:NaN;
 const ema200BackgroundText=formatEma200Context('4小时',close4h,e200_4h,price);
+const ema200BackgroundClean=ema200BackgroundText.replace(/[。；;]+$/,'');
 const liveEmaDistances4h=formatLiveEmaDistances(price,[['EMA20',e20_4h],['EMA50',e50_4h],['EMA200',e200_4h]]);
 
 // 1小时指标统一使用60天历史数据，并排除当前尚未完成的小时K线
@@ -890,6 +891,8 @@ const livePriceBelowBoth=livePriceBelowEma20&&livePriceBelowEma50;
 const livePriceAboveBoth=livePriceAboveEma20&&livePriceAboveEma50;
 const livePriceBelowAllThree=livePriceBelowBoth&&livePriceBelowEma200;
 const livePriceAboveAllThree=livePriceAboveBoth&&livePriceAboveEma200;
+const close4hBelowEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h<e200_4h;
+const close4hAboveEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h>e200_4h;
 
 // 若实时价格已跌破全部三条均线，不再显示“偏多/偏空”，改为等待收盘确认；
 // 已完成K线的原始投票结果仍保留在closedCandleTrend中。
@@ -926,8 +929,6 @@ const ema200Caveat=livePriceBelowEma200&&close4h>e200_4h?
       '实时价格已回到EMA200上方，但最近已完成4小时收盘仍在其下，尚未确认有效收复':
       livePriceAboveEma200?
         '实时价格已位于EMA200上方，仍需观察4小时收盘能否持续站稳':'';
-const close4hBelowEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h<e200_4h;
-const close4hAboveEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h>e200_4h;
 const trendLabel=livePriceBelowAllThree?
   (closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多'?
     (close4hBelowEma200?'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）'):
@@ -1064,7 +1065,7 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
     $('trendWhy').textContent=[
       '已完成K线综合判断：'+closedCandleTrend+'。'+strong,
       'EMA结构：'+emaText,
-      'EMA200长期背景：'+ema200BackgroundText+(ema200Caveat?'；'+ema200Caveat:''),
+      'EMA200长期背景：'+ema200BackgroundClean+(ema200Caveat?'；'+ema200Caveat:''),
       '实时均线距离：'+liveEmaDistances4h,
       'RSI（14）：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。':'')+rsiText+(rsiChangeText?' '+rsiChangeText:''),
       'MACD（12,26,9）：'+macdText,
@@ -1100,7 +1101,7 @@ lines.push('【一、4小时市场趋势】');
 lines.push(
   '综合趋势：'+trendLabel+'。'+strong+'。'+'\n'+
   'EMA结构：'+emaText+'\n'+
-  'EMA200长期背景：'+ema200BackgroundText+(ema200Caveat?'；'+ema200Caveat:'')+'；'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+'。'+'\n'+
+  'EMA200长期背景：'+ema200BackgroundClean+(ema200Caveat?'；'+ema200Caveat:'')+'；'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+'。'+'\n'+
   '实时价格与4小时均线距离：'+liveEmaDistances4h+'\n'+
   'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+rsiText+(rsiChangeText?' '+rsiChangeText:''):rsiText)+'\n'+
   'MACD：'+macdText+'\n'+
