@@ -20,6 +20,7 @@ button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px
 .analysis-highlight{grid-column:1/-1;background:linear-gradient(135deg,#172944,#142238);border:1px solid #3a5277;border-radius:12px;padding:14px;margin-bottom:12px}
 .analysis-highlight .highlight-title{font-size:13px;font-weight:700;color:#a9c8ff;margin-bottom:7px}
 .analysis-highlight p{margin:4px 0;color:#edf3ff;font-size:13px;line-height:1.7}
+.analysis-highlight .conflict-warning{margin-top:9px;padding:10px 11px;background:rgba(244,189,98,.09);border-left:3px solid var(--amber);border-radius:7px;white-space:pre-line}
 .analysis-block{min-width:0;background:#0f1729;border:1px solid var(--line);border-radius:12px;padding:14px}
 .analysis-block.wide{grid-column:1/-1}
 .analysis-block h3{font-size:14px;margin:0 0 10px;color:#dce8ff;display:flex;align-items:center;gap:8px}
@@ -782,6 +783,37 @@ if(fourHourBull&&oneHourBull){
   timeframeText='4小时与1小时尚未形成清晰的同向信号，建议等待更多收盘确认。';
 }
 
+// 多周期冲突预警：趋势方向与短线方向分开判断，不把短线回调直接视为大趋势反转
+let timeframeConflictLevel='观察';
+let timeframeConflictTitle='多周期信号尚未明确';
+let timeframeConflictText='4小时与1小时暂未形成明确的方向冲突。';
+let timeframeActionText='等待两周期已完成K线进一步确认，避免仅凭单一周期信号判断方向。';
+
+if(fourHourBull&&oneHourBear){
+  timeframeConflictLevel=bearVotes1h===3?'较强':'中等';
+  timeframeConflictTitle=bearVotes1h===3?'多头趋势中的明显回调压力':'多头趋势中的短线回调预警';
+  timeframeConflictText='4小时仍偏多，但1小时偏空；短线卖压与较大周期方向相反，当前更应视为回调风险，而不是直接认定4小时趋势反转。';
+  timeframeActionText='观察1小时是否重新站回EMA20、RSI是否回到45上方，以及MACD负柱是否收缩；若价格继续跌破动态支撑且4小时收盘转弱，再重新评估较大周期趋势。';
+}else if(fourHourBear&&oneHourBull){
+  timeframeConflictLevel=bullVotes1h===3?'较强':'中等';
+  timeframeConflictTitle=bullVotes1h===3?'空头趋势中的明显反弹':'空头趋势中的逆势反弹预警';
+  timeframeConflictText='4小时仍偏空，但1小时偏多；短线反弹尚不足以证明4小时下跌趋势已经反转。';
+  timeframeActionText='观察1小时反弹能否延续，以及4小时是否重新站回EMA20并改善RSI、MACD；若反弹遇阻后4小时继续走弱，应防范反弹结束。';
+}else if(fourHourBull&&oneHourBull){
+  timeframeConflictLevel='低';
+  timeframeConflictTitle='多周期方向一致偏多';
+  timeframeConflictText='4小时与1小时均偏多，短线方向与较大周期一致，但仍需价格收盘和关键价位确认。';
+  timeframeActionText='关注价格能否守住1小时EMA20，并观察动态阻力突破是否获得收盘与成交量确认。';
+}else if(fourHourBear&&oneHourBear){
+  timeframeConflictLevel='低';
+  timeframeConflictTitle='多周期方向一致偏空';
+  timeframeConflictText='4小时与1小时均偏空，短线方向与较大周期一致，下行风险需持续留意。';
+  timeframeActionText='关注动态支撑是否失守，以及反弹能否收复1小时EMA20；避免把短暂反弹误判为趋势反转。';
+}
+
+const timeframeConflictSummary='预警等级：'+timeframeConflictLevel+'。'+timeframeConflictTitle+'。'+timeframeConflictText;
+const timeframeConflictDetails=timeframeConflictSummary+'\n观察条件：'+timeframeActionText;
+
 const emaText=emaVote===1?'短中期结构偏多：最近已完成4小时收盘价高于EMA20，且EMA20高于EMA50；这不代表EMA200也已形成多头排列。':
   emaVote===-1?'短中期结构偏空：最近已完成4小时收盘价低于EMA20，且EMA20低于EMA50；EMA200长期背景需另行判断。':
   '价格与EMA20/EMA50排列尚未形成一致方向，短中期结构仍待确认。';
@@ -899,8 +931,8 @@ lines.push(
   '信号依据：使用最近一根已完成的1小时K线计算，避免当前未收盘K线干扰。'
 );
 
-lines.push('【五、4小时与1小时联动】');
-lines.push(timeframeText);
+lines.push('【五、多周期趋势冲突预警】');
+lines.push(timeframeText+'\n'+timeframeConflictDetails);
 
 // 六、交易情景与风险控制
 lines.push('【六、交易情景与风险控制】');
@@ -926,7 +958,10 @@ function renderAnalysisSections(items){
   highlight1h.textContent='1小时：'+trend1h+'。';
   const highlightDistance=document.createElement('p');
   highlightDistance.textContent=Number.isFinite(ema200DistancePct)?'实时价格：'+(ema200DistancePct>=0?'已在':'仍在')+'4小时EMA200'+(ema200DistancePct>=0?'上方':'下方')+'，距离 '+Math.abs(ema200DistancePct).toFixed(2)+'%。'+(ema200DistancePct<0?'短线仍有均线压力，需重新站上该线确认。':'实时价格已重新站上该线。'):'实时价格与4小时EMA200距离暂不可计算。';
-  highlight.append(highlightTitle,highlight4h,highlight1h,highlightDistance);
+  const highlightConflict=document.createElement('p');
+  highlightConflict.className='conflict-warning';
+  highlightConflict.textContent=timeframeConflictDetails;
+  highlight.append(highlightTitle,highlight4h,highlight1h,highlightDistance,highlightConflict);
   target.append(highlight);
   for(let i=0;i<items.length;i+=2){
     const heading=items[i]||'';
@@ -950,6 +985,7 @@ function renderAnalysisSections(items){
 renderAnalysisSections(lines);
 
     let a=[];
+    a.push(timeframeConflictDetails);
     if(Number.isFinite(p.resistance)){
       a.push(resistanceBreakoutText);
       const resistanceDistance=(p.resistance-price)/price*100;
