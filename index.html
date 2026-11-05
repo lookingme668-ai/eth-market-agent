@@ -128,6 +128,22 @@ const API='https://api.exchange.coinbase.com';
 const $=id=>document.getElementById(id);
 const fmt=n=>Number.isFinite(n)?'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
 const pct=n=>(n>=0?'+':'')+n.toFixed(2)+'%';
+function formatEma200Context(period,closedClose,ema200,livePrice){
+  if(!Number.isFinite(ema200)||!Number.isFinite(closedClose)||!Number.isFinite(livePrice)||ema200===0)
+    return 'EMA200、最近已完成K线收盘价或实时价格数据不足，暂无法判断。';
+  const closedPosition=closedClose>ema200?'高于':closedClose<ema200?'低于':'接近';
+  const livePosition=livePrice>ema200?'高于':livePrice<ema200?'低于':'接近';
+  const distance=(livePrice/ema200-1)*100;
+  return '最近已完成'+period+'K线收盘价'+closedPosition+'EMA200；实时ETH价格'+livePosition+
+    'EMA200（'+fmt(ema200)+'），'+(distance>=0?'高于':'低于')+'该均线'+Math.abs(distance).toFixed(2)+'%。';
+}
+function formatLiveEmaDistances(price,entries){
+  return entries.map(([label,value])=>{
+    if(!Number.isFinite(price)||!Number.isFinite(value)||value===0)return label+'距离暂不可计算';
+    const distance=(price/value-1)*100;
+    return label+'（'+fmt(value)+'）：实时价格'+(distance>=0?'高于':'低于')+Math.abs(distance).toFixed(2)+'%';
+  }).join('；')+'。';
+}
 let lastPrice=null;
 
 async function getJSON(url){
@@ -631,9 +647,8 @@ const prevRv4h=rsi(closes4h.slice(0,-1));
 const m4h=macd(closes4h);
 const close4h=closes4h[closes4h.length-1];
 const ema200DistancePct=Number.isFinite(price)&&Number.isFinite(e200_4h)&&e200_4h!==0?(price/e200_4h-1)*100:NaN;
-const ema200BackgroundText=Number.isFinite(ema200DistancePct)?
-  (ema200DistancePct>=0?'现价高于4小时EMA200约'+Math.abs(ema200DistancePct).toFixed(2)+'%。':'现价低于4小时EMA200约'+Math.abs(ema200DistancePct).toFixed(2)+'%，长期均线仍构成上方压力。'):
-  '现价与4小时EMA200距离暂不可计算。';
+const ema200BackgroundText=formatEma200Context('4小时',close4h,e200_4h,price);
+const liveEmaDistances4h=formatLiveEmaDistances(price,[['EMA20',e20_4h],['EMA50',e50_4h],['EMA200',e200_4h]]);
 
 // 1小时指标统一使用60天历史数据，并排除当前尚未完成的小时K线
 const currentHourStart=Math.floor(Date.now()/3600000)*3600;
@@ -671,15 +686,8 @@ else if(bearVotes1h>=2)trend1h='短线偏空';
 const emaText1h=emaVote1h===1?'收盘价高于EMA20，且EMA20高于EMA50，短线结构偏多。':
   emaVote1h===-1?'收盘价低于EMA20，且EMA20低于EMA50，短线结构偏空。':
   '价格与EMA20/EMA50排列不一致，短线趋势结构尚未确认。';
-const ema200Text1h=Number.isFinite(e200_1hClosed)&&Number.isFinite(close1hClosed)&&Number.isFinite(price)?
-  '最近已完成1小时K线收盘价'+
-  (close1hClosed>e200_1hClosed?'高于':close1hClosed<e200_1hClosed?'低于':'接近')+
-  'EMA200；实时ETH价格'+
-  (price>e200_1hClosed?'高于':price<e200_1hClosed?'低于':'接近')+
-  'EMA200（'+fmt(e200_1hClosed)+'），实时价格'+
-  (price>e200_1hClosed?'位于该均线上方，实时位置偏强。':
-   price<e200_1hClosed?'位于该均线下方，实时位置偏弱。':'正处于该均线附近。'):
-  'EMA200、最近已完成K线收盘价或实时价格数据不足，暂无法判断。';
+const ema200Text1h=formatEma200Context('1小时',close1hClosed,e200_1hClosed,price);
+const liveEmaDistances1h=formatLiveEmaDistances(price,[['EMA20',e20_1hClosed],['EMA50',e50_1hClosed],['EMA200',e200_1hClosed]]);
 
 const rsiText1h=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断。':
   rv1hClosed<30?'明显偏弱，处于超卖区域，等待止跌确认。':
@@ -899,7 +907,8 @@ lines.push(
   '综合趋势：'+trendLabel+'。'+strong+'。'+'\n'+
   'EMA结构：'+emaText+'\n'+
   'EMA200长期背景：'+ema200CloseContext+'；'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20尚未高于EMA50')+(ema200Caveat?'；'+ema200Caveat:'')+'。'+'\n'+
-  '实时价格距离EMA200：'+ema200BackgroundText+'（EMA200按最近已完成4小时K线计算。）'+'\n'+
+  'EMA200背景：'+ema200BackgroundText+'\n'+
+  '实时价格与4小时均线距离：'+liveEmaDistances4h+'\n'+
   'RSI(14)：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。'+rsiText+(rsiChangeText?' '+rsiChangeText:''):rsiText)+'\n'+
   'MACD：'+macdText+'\n'+
   '综合解读：'+consensusText
@@ -931,6 +940,7 @@ lines.push(
   '综合判断：'+trend1h+'。'+consensusText1h+'\n'+
   'EMA结构：'+emaText1h+'\n'+
   'EMA200背景：'+ema200Text1h+'\n'+
+  '实时价格与1小时均线距离：'+liveEmaDistances1h+'\n'+
   'RSI(14)：'+(Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1)+'。'+rsiText1h+(rsiChangeText1h?' '+rsiChangeText1h:''):rsiText1h)+'\n'+
   'MACD：'+macdText1h+'\n'+
   '信号依据：使用最近一根已完成的1小时K线计算，避免当前未收盘K线干扰。'
@@ -961,12 +971,14 @@ function renderAnalysisSections(items){
   highlight4h.textContent='4小时：'+trendLabel+'；'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+(ema200Caveat?'；'+ema200Caveat:'')+'。';
   const highlight1h=document.createElement('p');
   highlight1h.textContent='1小时：'+trend1h+'。';
-  const highlightDistance=document.createElement('p');
-  highlightDistance.textContent=Number.isFinite(ema200DistancePct)?'实时价格：'+(ema200DistancePct>=0?'已在':'仍在')+'4小时EMA200'+(ema200DistancePct>=0?'上方':'下方')+'，距离 '+Math.abs(ema200DistancePct).toFixed(2)+'%。'+(ema200DistancePct<0?'短线仍有均线压力，需重新站上该线确认。':'实时价格已重新站上该线。'):'实时价格与4小时EMA200距离暂不可计算。';
+  const highlightDistance4h=document.createElement('p');
+  highlightDistance4h.textContent='4小时EMA200背景：'+ema200BackgroundText+' 实时均线距离：'+liveEmaDistances4h;
+  const highlightDistance1h=document.createElement('p');
+  highlightDistance1h.textContent='1小时EMA200背景：'+ema200Text1h+' 实时均线距离：'+liveEmaDistances1h;
   const highlightConflict=document.createElement('p');
   highlightConflict.className='conflict-warning';
   highlightConflict.textContent=timeframeConflictDetails;
-  highlight.append(highlightTitle,highlight4h,highlight1h,highlightDistance,highlightConflict);
+  highlight.append(highlightTitle,highlight4h,highlight1h,highlightDistance4h,highlightDistance1h,highlightConflict);
   target.append(highlight);
   for(let i=0;i<items.length;i+=2){
     const heading=items[i]||'';
