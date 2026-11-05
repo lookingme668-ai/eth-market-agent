@@ -366,7 +366,7 @@ function aggregate4h(hourly){
       }
     }
   }
-  if(state&&state.phase==='failed'&&Number.isFinite(livePrice)&&Number.isFinite(dynamicResistance)&&livePrice<=state.level&&livePrice<=dynamicResistance){
+  if(state&&state.phase==='failed'&&Number.isFinite(livePrice)&&livePrice<=state.level){
     state=null;
     rearmed=true;
   }
