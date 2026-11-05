@@ -658,18 +658,21 @@ let lastCrossTime='暂无记录';
 let barsSinceCross='暂无记录';
 
 if(lastCrossIndex>=0){
-  lastCrossTime=new Date(
-    candles4h[lastCrossIndex].time*1000
-  ).toLocaleString();
+  // Coinbase K线时间戳代表周期开始时间；交叉在该根K线收盘后才算确认
+  const crossConfirmedAt=candles4h[lastCrossIndex].time+4*3600;
+  lastCrossTime=new Date(crossConfirmedAt*1000).toLocaleString();
 
-  barsSinceCross=(candles4h.length-1-lastCrossIndex)+'根4小时K线';
+  // 只统计交叉确认之后已经完成的4小时K线，不包含交叉确认K线本身
+  const completedBarsAfterCross=Math.max(0,candles4h.length-1-lastCrossIndex);
+  barsSinceCross=completedBarsAfterCross+'根已完成4小时K线（不含交叉确认K线）';
 }
     let daysSinceCross='暂无记录';
 
 if(lastCrossIndex>=0){
+  const crossConfirmedAt=candles4h[lastCrossIndex].time+4*3600;
   daysSinceCross=Math.floor(
-    (Date.now()-candles4h[lastCrossIndex].time*1000)/86400000
-  )+'天';
+    Math.max(0,Date.now()-crossConfirmedAt*1000)/86400000
+  )+'天（按收盘确认时间计算）';
 }
     // 计算最近一次EMA交叉后的价格涨跌幅
 let changeSinceCross='暂无记录';
@@ -772,11 +775,11 @@ const ema200Text1h=formatEma200Context('1小时',close1hClosed,e200_1hClosed,pri
 const liveEmaDistances1h=formatLiveEmaDistances(price,[['EMA20',e20_1hClosed],['EMA50',e50_1hClosed],['EMA200',e200_1hClosed]]);
 
 const rsiText1h=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断。':
-  rv1hClosed<30?'明显偏弱，处于超卖区域，等待止跌确认。':
-  rv1hClosed<45?'偏弱，空头动能占优。':
-  rv1hClosed<=55?'中性区域，多空动能暂不明显。':
-  rv1hClosed<70?'偏强，多头动能占优。':
-  '多头动能较强但已偏热，注意短线回撤风险。';
+  rv1hClosed<30?'明显偏弱，处于超卖区域，等待止跌确认；超卖不代表价格必然立即反弹。':
+  rv1hClosed<45?'低于中性区间，整体偏弱；RSI本身不能单独确认空头动能占优。':
+  rv1hClosed<=55?'处于中性区域，多空强弱暂不明显。':
+  rv1hClosed<70?'高于中性区间，整体偏强；仍需结合EMA与MACD确认。':
+  '处于偏强区域但已偏热，注意短线回撤风险。';
 const rsiChangeText1h=Number.isFinite(prevRv1hClosed)?
   (rv1hClosed-prevRv1hClosed>1?'较上一根已完成1小时K线增强。':
    rv1hClosed-prevRv1hClosed< -1?'较上一根已完成1小时K线减弱。':
@@ -784,16 +787,16 @@ const rsiChangeText1h=Number.isFinite(prevRv1hClosed)?
 
 let macdText1h='数据不足，暂无法判断。';
 if(Number.isFinite(m1hClosed.hist)){
-  const directionText=m1hClosed.hist>0?'柱体为正，多头动能占优。':
-    m1hClosed.hist<0?'柱体为负，空头动能占优。':'柱体接近零轴，动能暂不明显。';
+  const directionText=m1hClosed.hist>0?'柱体为正，MACD线高于信号线，短期动能相对偏强。':
+    m1hClosed.hist<0?'柱体为负，MACD线低于信号线，短期动能相对偏弱。':'柱体接近零轴，短期动能暂不明显。';
   let momentumText='';
   if(Number.isFinite(prevM1hClosed.hist)){
     if(m1hClosed.hist>0){
-      momentumText=m1hClosed.hist>prevM1hClosed.hist?'正柱扩大，多头动能增强。':
-        m1hClosed.hist<prevM1hClosed.hist?'正柱收缩，多头动能减弱。':'柱体变化不大。';
+      momentumText=m1hClosed.hist>prevM1hClosed.hist?'正柱扩大，MACD相对上行动能增强。':
+        m1hClosed.hist<prevM1hClosed.hist?'正柱收缩，MACD相对上行动能减弱。':'正柱变化不大。';
     }else if(m1hClosed.hist<0){
-      momentumText=m1hClosed.hist<prevM1hClosed.hist?'负柱扩大，空头动能增强。':
-        m1hClosed.hist>prevM1hClosed.hist?'负柱收缩，空头动能减弱。':'柱体变化不大。';
+      momentumText=m1hClosed.hist<prevM1hClosed.hist?'负柱扩大，MACD相对下行动能增强。':
+        m1hClosed.hist>prevM1hClosed.hist?'负柱收缩，MACD相对下行动能减弱。':'负柱变化不大。';
     }else{
       momentumText='动能接近零轴，等待方向确认。';
     }
@@ -893,10 +896,10 @@ const ema200Caveat=livePriceBelowEma200&&close4h>e200_4h?
       '实时价格已回到EMA200上方，但最近已完成4小时收盘仍在其下，尚未确认有效收复':
       livePriceAboveEma200?
         '实时价格已位于EMA200上方，仍需观察4小时收盘能否持续站稳':'';
-const trendLabel=livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多')?
-  '实时走势偏弱（已完成4小时K线指标仍偏多；等待收盘确认）':
-  livePriceAboveAllThree&&(closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空')?
-    '实时走势反弹偏强（已完成4小时K线指标仍偏空；等待收盘确认）':
+const trendLabel=livePriceBelowAllThree?
+  '4小时方向未明（实时价格已跌破EMA20/EMA50/EMA200，实时走势明显偏弱；等待收盘确认）':
+  livePriceAboveAllThree?
+    '4小时方向未明（实时价格已站上EMA20/EMA50/EMA200，反弹明显；等待收盘确认）':
     (trend==='强势偏多'?'短中期强势偏多':
      trend==='强势偏空'?'短中期强势偏空':
      trend==='偏多'?'短中期偏多':
@@ -962,11 +965,11 @@ const emaText=emaVote===1?'短中期结构偏多：最近已完成4小时收盘�
   '价格与EMA20/EMA50排列尚未形成一致方向，短中期结构仍待确认。';
 
 const rsiText=!Number.isFinite(rv4h)?'数据不足，暂无法判断。':
-  rv4h<30?'明显偏弱，处于超卖区域，留意潜在反弹。':
-  rv4h<45?'偏弱，空头动能占优。':
-  rv4h<=55?'处于中性区域，多空动能暂不明显。':
-  rv4h<70?'偏强，多头动能占优。':
-  '多头动能强，但已偏热，注意短线回撤风险。';
+  rv4h<30?'明显偏弱，处于超卖区域，留意潜在反弹；超卖不代表价格必然立即反弹。':
+  rv4h<45?'低于中性区间，整体偏弱；RSI本身不能单独确认空头动能占优。':
+  rv4h<=55?'处于中性区域，多空强弱暂不明显。':
+  rv4h<70?'高于中性区间，整体偏强；仍需结合EMA与MACD确认。':
+  '处于偏强区域但已偏热，注意短线回撤风险。';
 
 const rsiChangeText=Number.isFinite(prevRv4h)?
   (rv4h-prevRv4h>1?'较上一根已完成4小时K线增强。':
@@ -975,16 +978,16 @@ const rsiChangeText=Number.isFinite(prevRv4h)?
 
 let macdText='数据不足，暂无法判断。';
 if(Number.isFinite(m4h.hist)){
-  const macdDirection=m4h.hist>0?'柱体为正，多头动能占优。':
-    m4h.hist<0?'柱体为负，空头动能占优。':'柱体接近零，多空动能暂不明显。';
+  const macdDirection=m4h.hist>0?'柱体为正，MACD线高于信号线，短期动能相对偏强。':
+    m4h.hist<0?'柱体为负，MACD线低于信号线，短期动能相对偏弱。':'柱体接近零轴，短期动能暂不明显。';
   let macdMomentum='';
   if(Number.isFinite(prevM4h.hist)){
     if(m4h.hist>0){
-      macdMomentum=m4h.hist>prevM4h.hist?'柱体扩大，动能增强。':
-        m4h.hist<prevM4h.hist?'柱体收缩，动能减弱。':'柱体变化不大。';
+      macdMomentum=m4h.hist>prevM4h.hist?'正柱扩大，MACD相对上行动能增强。':
+        m4h.hist<prevM4h.hist?'正柱收缩，MACD相对上行动能减弱。':'正柱变化不大。';
     }else if(m4h.hist<0){
-      macdMomentum=m4h.hist<prevM4h.hist?'负柱扩大，空头动能增强。':
-        m4h.hist>prevM4h.hist?'负柱收缩，空头动能减弱。':'柱体变化不大。';
+      macdMomentum=m4h.hist<prevM4h.hist?'负柱扩大，MACD相对下行动能增强。':
+        m4h.hist>prevM4h.hist?'负柱收缩，MACD相对下行动能减弱。':'负柱变化不大。';
     }else{
       macdMomentum='动能接近零轴，等待方向确认。';
     }
