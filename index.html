@@ -1219,7 +1219,7 @@ const trendLabel=livePriceBelowAllThree?
     (close4hBelowEma200?'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）'):
    closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
     '已完成4小时K线指标偏空，实时走势也明显偏弱（价格低于EMA20/EMA50/EMA200）':
-    (close4hBelowEma200?'已完成4小时K线方向未明，实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线方向未明，实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）')):
+    (close4hBelowEma200?'已完成4小时K线：震荡 / 等待确认；实时走势：明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线：震荡 / 等待确认；实时走势：明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）')):
   livePriceAboveAllThree?
   (closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
     '已完成4小时K线指标仍偏空，但实时走势反弹明显（价格已站上EMA20/EMA50/EMA200；等待收盘确认）':
@@ -1381,8 +1381,8 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
     let lines=[];
    
 
-// 一、4小时市场趋势
-lines.push('【一、4小时市场趋势】');
+// 二、4小时市场趋势
+lines.push('【二、4小时市场趋势】');
 lines.push(
   '综合趋势：'+trendLabel+'。'+strong+'。'+'\n'+
   'EMA结构：'+emaText+'\n'+
@@ -1393,8 +1393,8 @@ lines.push(
   '综合解读：'+consensusText
 );
 
-// 二、最近一次EMA交叉
-lines.push('【二、最近一次EMA交叉】');
+// 三、最近一次EMA交叉
+lines.push('【三、最近一次EMA交叉】');
 lines.push(
   '当前交叉信号：'+cross4h+'\n'+
   '最近一次历史交叉：'+lastCrossType+'\n'+
@@ -1403,8 +1403,8 @@ lines.push(
   '距今时间：'+daysSinceCross
 );
 
-// 三、交叉后的价格表现
-lines.push('【三、交叉后的价格表现】');
+// 四、交叉后的价格表现
+lines.push('【四、交叉后的价格表现】');
 lines.push(
   '当前累计涨跌幅：'+changeSinceCross+'\n'+
   '交叉后最高价：'+highestSinceCross+'\n'+
@@ -1413,8 +1413,8 @@ lines.push(
   '最大收盘回撤（按交叉后已完成4小时K线收盘价计算，不含盘中最低价）：'+maxDrawdownSinceCross
 );
 
-// 四、1小时短线动能与多周期联动
-lines.push('【四、1小时短线动能】');
+// 一、1小时短线动能与多周期联动
+lines.push('【一、1小时短线动能】');
 lines.push(
   '综合判断：'+trend1h+'。'+consensusText1h+'\n'+
   'EMA结构：'+emaText1h+'\n'+
@@ -1432,7 +1432,8 @@ lines.push(timeframeText+'\n'+timeframeConflictDetails);
 lines.push('【六、交易情景与风险控制】');
 lines.push(
   '多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。\n'+
-  '空头情景：价格跌破 EMA20 与动态支撑，反弹无法收复时，下行风险增加。\n'+
+  '空头情景：价格跌破1小时EMA20与动态支撑，反弹无法收复时，下行风险增加。\n'+
+  '空头情景状态：'+(!Number.isFinite(price)||!Number.isFinite(e20_1hClosed)||!Number.isFinite(p.support)?'数据不足，暂无法判断。':price<e20_1hClosed&&price<p.support?'价格已低于1小时EMA20与动态支撑；反弹能否收复仍待确认，空头情景部分满足。':price<e20_1hClosed?'价格已低于1小时EMA20，但尚未同时跌破动态支撑，空头情景尚未完整满足。':price<p.support?'价格已低于动态支撑，但尚未跌破1小时EMA20，空头情景尚未完整满足。':'价格尚未同时跌破1小时EMA20与动态支撑，空头情景暂未触发。')+'\n'+
   '阻力突破确认：'+resistanceBreakoutText+'\n'+
   '风险控制：单一指标不构成交易信号；关注收盘确认、波动幅度和仓位风险。'
 );
@@ -1466,13 +1467,12 @@ function renderAnalysisSections(items){
     const match=heading.match(/^【([一二三四五六])、(.+)】$/);
     const block=document.createElement('section');
     block.className='analysis-block'+(match&&match[1]==='六'?' wide':'');
-    if(match&&match[1]==='四')block.dataset.period='1h';
-    if(match&&match[1]==='一')block.dataset.period='4h';
+    if(match&&match[1]==='一')block.dataset.period='1h';
+    if(match&&match[1]==='二')block.dataset.period='4h';
     const title=document.createElement('h3');
     const number=document.createElement('span');
     number.className='num';
-    const displayNumbers={'四':'一','一':'二','二':'三','三':'四','五':'五','六':'六'};
-    number.textContent=match?(displayNumbers[match[1]]||match[1])+'、':'';
+    number.textContent=match?match[1]+'、':'';
     const label=document.createElement('span');
     label.textContent=match?match[2]:heading;
     title.append(number,label);
@@ -1483,7 +1483,7 @@ function renderAnalysisSections(items){
   }
 
   // 左侧1小时，右侧4小时；其余分析章节接在双周期对照区块之后
-  ['四','一','二','三','五','六'].forEach(key=>{
+  ['一','二','三','四','五','六'].forEach(key=>{
     if(blocks[key])target.append(blocks[key]);
   });
 }
