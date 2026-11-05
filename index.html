@@ -335,7 +335,8 @@ function aggregate4h(hourly){
     const saved=localStorage.getItem(storageKey);
     if(saved)state=JSON.parse(saved);
   }catch(e){state=null;}
-  if(!(state&&Number.isFinite(state.level)&&['waiting_close','confirmed','retested','confirmed_retest'].includes(state.phase)))state=null;
+  if(!(state&&Number.isFinite(state.level)&&['waiting_close','confirmed','retested','confirmed_retest','failed'].includes(state.phase)))state=null;
+  let rearmed=false;
   const save=()=>{
     try{
       if(state)localStorage.setItem(storageKey,JSON.stringify(state));
@@ -344,33 +345,39 @@ function aggregate4h(hourly){
   };
   if(state){
     for(const candle of closedCandles.filter(c=>c.time>state.lastProcessedTime)){
+      if(state.phase==='failed')break;
       state.lastProcessedTime=candle.time;
       if(state.phase==='waiting_close'){
         if(candle.close>state.level){state.phase='confirmed';state.confirmedTime=candle.time;}
-        else{state=null;break;}
+        else{state.phase='failed';state.failedTime=candle.time;break;}
       }else if(state.phase==='confirmed'){
-        if(candle.close<state.level){state=null;break;}
+        if(candle.close<state.level){state.phase='failed';state.failedTime=candle.time;break;}
         if(candle.low<=state.level*(1+tolerance)&&candle.high>=state.level&&candle.close>=state.level){
           state.phase='retested';state.retestHigh=candle.high;state.retestTime=candle.time;
         }
       }else if(state.phase==='retested'){
-        if(candle.close<state.level){state=null;break;}
+        if(candle.close<state.level){state.phase='failed';state.failedTime=candle.time;break;}
         if(candle.close>state.retestHigh){state.phase='confirmed_retest';state.confirmedRetestTime=candle.time;}
         else if(candle.low<=state.level*(1+tolerance)&&candle.close>=state.level){
           state.retestHigh=candle.high;state.retestTime=candle.time;
         }
       }else if(state.phase==='confirmed_retest'&&candle.close<state.level){
-        state=null;break;
+        state.phase='failed';state.failedTime=candle.time;break;
       }
     }
   }
-  if(!state&&Number.isFinite(dynamicResistance)&&livePrice>dynamicResistance&&latest){
+  if(state&&state.phase==='failed'&&Number.isFinite(livePrice)&&Number.isFinite(dynamicResistance)&&livePrice<=state.level&&livePrice<=dynamicResistance){
+    state=null;
+    rearmed=true;
+  }
+  if(!state&&!rearmed&&Number.isFinite(dynamicResistance)&&livePrice>dynamicResistance&&latest){
     state={level:dynamicResistance,phase:'waiting_close',breakoutStartTime:Date.now(),lastProcessedTime:latest.time};
   }
   save();
   if(!Number.isFinite(dynamicResistance))return {text:'动态阻力数据不足，暂无法判断突破状态。',level:null,phase:'unavailable'};
   if(!state)return {text:'实时价格仍在动态阻力下方，尚未形成初步上破。',level:dynamicResistance,phase:'none'};
   const locked='本次跟踪阻力位：'+fmt(state.level)+'（突破时锁定，不随动态阻力刷新而改变）。';
+  if(state.phase==='failed')return {text:'突破确认失败：1小时收盘价已跌回锁定阻力下方，暂不再把这次冲高视为有效突破。价格回到锁定阻力及当前动态阻力下方后，才会重新开始跟踪。'+locked,level:state.level,phase:state.phase};
   if(state.phase==='waiting_close')return {text:'实时价格已越过锁定阻力，属于初步上破；等待1小时K线收盘确认。'+locked,level:state.level,phase:state.phase};
   if(state.phase==='confirmed')return {text:'最近已完成1小时K线收盘站上锁定阻力，突破初步确认；等待价格回踩该位置并守住。'+locked,level:state.level,phase:state.phase};
   if(state.phase==='retested')return {text:'价格已回踩锁定阻力附近且1小时收盘守住，等待后续收盘价突破回踩K线高点。'+locked,level:state.level,phase:state.phase};
