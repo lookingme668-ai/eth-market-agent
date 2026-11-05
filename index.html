@@ -592,6 +592,7 @@ const rv1hClosed=rsi(closes1hClosed);
 const prevRv1hClosed=rsi(closes1hClosed.slice(0,-1));
 const m1hClosed=macd(closes1hClosed);
 const prevM1hClosed=macd(closes1hClosed.slice(0,-1));
+const macdRun1h=describeMacdRun(macdHistTrail(closes1hClosed,4));
 
 const emaVote1h=Number.isFinite(e20_1hClosed)&&Number.isFinite(e50_1hClosed)&&Number.isFinite(close1hClosed)?
   (close1hClosed>e20_1hClosed&&e20_1hClosed>e50_1hClosed?1:
@@ -675,7 +676,6 @@ if(prevE20_4h<=prevE50_4h && e20_4h>e50_4h){
 // 计算上一根已完成4小时K线的MACD，用于判断柱体动能变化
 const prevM4h=macd(closes4h.slice(0,-1));
 const macdRun4h=describeMacdRun(macdHistTrail(closes4h,4));
-const macdRun1h=describeMacdRun(macdHistTrail(closes1hClosed,4));
 
 // 三项指标分别投票：EMA判断短中期结构，RSI判断多空动能，MACD判断动能方向；EMA200另行评估长期背景
 const emaVote=close4h>e20_4h&&e20_4h>e50_4h?1:close4h<e20_4h&&e20_4h<e50_4h?-1:0;
