@@ -62,7 +62,9 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
             <tr><td>EMA 20</td><td id="ema20">—</td></tr>
             <tr><td>EMA 50</td><td id="ema50">—</td></tr>
             <tr><td>EMA 200</td><td id="ema200">—</td></tr>
+            <tr><td>RSI（14）</td><td id="rsi1h">—</td></tr>
             <tr><td>MACD（12,26,9）</td><td id="macd">—</td></tr>
+            <tr><td>综合趋势</td><td id="trend1hDisplay">—</td></tr>
           </table>
         </div>
         <div class="indicator-panel">
@@ -70,8 +72,10 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
           <table>
             <tr><td>EMA 20</td><td id="ema20_4h">—</td></tr>
             <tr><td>EMA 50</td><td id="ema50_4h">—</td></tr>
-            <tr><td>RSI 14</td><td id="rsi4h">—</td></tr>
+            <tr><td>EMA 200</td><td id="ema200_4h">—</td></tr>
+            <tr><td>RSI（14）</td><td id="rsi4h">—</td></tr>
             <tr><td>MACD（12,26,9）</td><td id="macd4h">—</td></tr>
+            <tr><td>综合趋势</td><td id="trend4hDisplay">—</td></tr>
           </table>
         </div>
         <div class="indicator-volume">
@@ -79,7 +83,7 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
           <span class="indicator-value" id="volume">—</span>
         </div>
       </div>
-      <p class="small">指标基于最近可获取的 Coinbase K线计算，可能与其他交易所略有差异。</p>
+      <p class="small">两组指标分别使用独立的1小时与4小时K线，并统一采用最近一根已完成K线计算；EMA、RSI、MACD按相同顺序展示。</p>
     </div>
   </section>
 
@@ -396,6 +400,7 @@ if(candles4h.length<50)throw new Error('4小时K线数量不足，暂时无法�
 const closes4h=candles4h.map(x=>x.close);
 const e20_4h=ema(closes4h,20);
 const e50_4h=ema(closes4h,50);
+const e200_4h=ema(closes4h,200);
     // 计算全部4小时K线的EMA历史序列
 const ema20Series4h=emaSeries(closes4h,20);
 const ema50Series4h=emaSeries(closes4h,50);
@@ -682,12 +687,19 @@ if(trend==='强势偏多'||trend==='强势偏空'){
     $('trendWhy').textContent=strong;
     $('rsi').textContent=Number.isFinite(rv)?rv.toFixed(1):'—';
     $('rsiHint').textContent=rv>=70?'偏热，留意回调':rv<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
-    $('ema20').textContent=moneyOrNA(e20);$('ema50').textContent=moneyOrNA(e50);$('ema200').textContent=moneyOrNA(e200);
-    $('macd').textContent=Number.isFinite(m.hist)?(m.hist>=0?'柱体为正':'柱体为负')+'（'+m.hist.toFixed(3)+'）':'—';
-    $('ema20_4h').textContent=Number.isFinite(e20_4h)?fmt(e20_4h):'—';
-$('ema50_4h').textContent=Number.isFinite(e50_4h)?fmt(e50_4h):'—';
-$('rsi4h').textContent=Number.isFinite(rv4h)?rv4h.toFixed(1):'—';
-$('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'柱体为负')+'（'+m4h.hist.toFixed(3)+'）':'—';
+    // 指标面板统一使用各周期最近一根已完成K线，避免未收盘数据导致数值跳动
+    $('ema20').textContent=moneyOrNA(e20_1hClosed);
+    $('ema50').textContent=moneyOrNA(e50_1hClosed);
+    $('ema200').textContent=moneyOrNA(e200_1hClosed);
+    $('rsi1h').textContent=Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1):'暂不可计算';
+    $('macd').textContent=Number.isFinite(m1hClosed.hist)?(m1hClosed.hist>=0?'柱体为正':'柱体为负')+'（'+m1hClosed.hist.toFixed(3)+'）':'暂不可计算';
+    $('trend1hDisplay').textContent=trend1h;
+    $('ema20_4h').textContent=Number.isFinite(e20_4h)?fmt(e20_4h):'暂不可计算';
+    $('ema50_4h').textContent=Number.isFinite(e50_4h)?fmt(e50_4h):'暂不可计算';
+    $('ema200_4h').textContent=Number.isFinite(e200_4h)?fmt(e200_4h):'暂不可计算';
+    $('rsi4h').textContent=Number.isFinite(rv4h)?rv4h.toFixed(1):'暂不可计算';
+    $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'柱体为负')+'（'+m4h.hist.toFixed(3)+'）':'暂不可计算';
+    $('trend4hDisplay').textContent=trend;
     $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
     $('support').textContent=moneyOrNA(p.support);$('resistance').textContent=moneyOrNA(p.resistance);
     draw(c.slice(-168));
