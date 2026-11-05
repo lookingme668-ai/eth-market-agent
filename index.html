@@ -843,7 +843,7 @@ const trend1hWhy=[
   'RSI（14）：'+(Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1)+'。':'')+rsiText1h+(rsiChangeText1h?' '+rsiChangeText1h:''),
   'MACD（12,26,9）：'+macdText1h,
   '判断依据：使用最近一根已完成1小时K线计算指标；实时价格位置单独显示，未收盘K线不提前作为确认信号。'
-].join('\\n');
+].join('\n');
 
 
     // 获取上一根4小时K线的EMA数值
@@ -1065,7 +1065,7 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
       'RSI（14）：'+(Number.isFinite(rv4h)?rv4h.toFixed(1)+'。':'')+rsiText+(rsiChangeText?' '+rsiChangeText:''),
       'MACD（12,26,9）：'+macdText,
       '综合解读：'+consensusText
-    ].join('\\n');
+    ].join('\n');
     $('trend1h').textContent=trend1hLabel;
     $('trend1h').className='v '+(live1hBelowAll?'red':live1hAboveAll?'green':trend1h.includes('偏多')?'green':trend1h.includes('偏空')?'red':'amber');
     $('trendWhy1h').textContent=trend1hWhy;
