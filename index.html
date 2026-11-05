@@ -670,9 +670,10 @@ if(lastCrossIndex>=0){
 
 if(lastCrossIndex>=0){
   const crossConfirmedAt=candles4h[lastCrossIndex].time+4*3600;
-  daysSinceCross=Math.floor(
-    Math.max(0,Date.now()-crossConfirmedAt*1000)/86400000
-  )+'天（按收盘确认时间计算）';
+  const elapsedHours=Math.floor(Math.max(0,Date.now()-crossConfirmedAt*1000)/3600000);
+  daysSinceCross=elapsedHours<24?
+    elapsedHours+'小时（按收盘确认时间计算）':
+    Math.floor(elapsedHours/24)+'天'+(elapsedHours%24?' '+(elapsedHours%24)+'小时':'')+'（按收盘确认时间计算）';
 }
     // 计算最近一次EMA交叉后的价格涨跌幅
 let changeSinceCross='暂无记录';
@@ -897,9 +898,17 @@ const ema200Caveat=livePriceBelowEma200&&close4h>e200_4h?
       livePriceAboveEma200?
         '实时价格已位于EMA200上方，仍需观察4小时收盘能否持续站稳':'';
 const trendLabel=livePriceBelowAllThree?
-  '4小时方向未明（实时价格已跌破EMA20/EMA50/EMA200，实时走势明显偏弱；等待收盘确认）':
+  (closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多'?
+    '已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格已跌破EMA20/EMA50/EMA200；等待收盘确认）':
+   closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
+    '已完成4小时K线指标偏空，实时走势也明显偏弱（价格低于EMA20/EMA50/EMA200）':
+    '已完成4小时K线方向未明，实时走势明显偏弱（价格已跌破EMA20/EMA50/EMA200；等待收盘确认）'):
   livePriceAboveAllThree?
-    '4小时方向未明（实时价格已站上EMA20/EMA50/EMA200，反弹明显；等待收盘确认）':
+  (closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
+    '已完成4小时K线指标仍偏空，但实时走势反弹明显（价格已站上EMA20/EMA50/EMA200；等待收盘确认）':
+   closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多'?
+    '已完成4小时K线指标偏多，实时价格也站在EMA20/EMA50/EMA200上方':
+    '已完成4小时K线方向未明，实时价格已站上EMA20/EMA50/EMA200；等待收盘确认'):
     (trend==='强势偏多'?'短中期强势偏多':
      trend==='强势偏空'?'短中期强势偏空':
      trend==='偏多'?'短中期偏多':
