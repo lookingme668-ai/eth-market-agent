@@ -66,7 +66,7 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
     <div class="card">
   <h2 class="section">ETH 价格走势（4小时 K 线）</h2>
   <canvas id="chart4h" width="900" height="280"></canvas>
-  <div class="small">显示最近约 60 天的4小时K线；图表由浏览器本地绘制。</div>
+  <div class="small">显示最近约 60 天的已完成4小时K线，并实时更新当前未收盘4小时临时K线与价格线；临时K线不参与技术指标计算。</div>
 </div>
     <div class="card">
       <h2 class="section">技术指标</h2>
@@ -419,7 +419,7 @@ function draw(c){
   ctx.strokeStyle='#7aa7ff';ctx.lineWidth=2.5;ctx.stroke();
   ctx.fillStyle='#91a0ba';ctx.font='13px system-ui';ctx.fillText(fmt(max),8,15);ctx.fillText(fmt(min),8,h-5);
 }
-function draw4h(candles){
+function draw4h(candles,liveCandle=null){
   const el=$('chart4h');
   if(!el||candles.length===0)return;
 
@@ -428,7 +428,7 @@ function draw4h(candles){
 
   const pad=30;
 
-  // 计算EMA20和EMA50
+  // EMA只根据已完成4小时K线计算，临时K线不参与指标
   function calcEMA(data,period){
     const result=Array(data.length).fill(NaN);
     if(data.length<period)return result;
@@ -444,9 +444,10 @@ function draw4h(candles){
 
   const ema20=calcEMA(candles,20);
   const ema50=calcEMA(candles,50);
+  const displayCandles=liveCandle?[...candles,liveCandle]:candles;
 
-  const min=Math.min(...candles.map(x=>x.low));
-  const max=Math.max(...candles.map(x=>x.high));
+  const min=Math.min(...displayCandles.map(x=>x.low));
+  const max=Math.max(...displayCandles.map(x=>x.high));
   const range=max-min||1;
   const y=v=>pad+(max-v)/range*(h-2*pad);
 
@@ -461,10 +462,10 @@ function draw4h(candles){
     ctx.stroke();
   }
 
-  const step=w/candles.length;
+  const step=w/displayCandles.length;
   const bodyWidth=Math.max(2,step*0.65);
 
-  // 绘制蜡烛
+  // 绘制已完成4小时K线
   candles.forEach((c,i)=>{
     const x=step*(i+0.5);
     const up=c.close>=c.open;
@@ -473,7 +474,6 @@ function draw4h(candles){
     ctx.strokeStyle=color;
     ctx.fillStyle=color;
     ctx.lineWidth=1;
-
     ctx.beginPath();
     ctx.moveTo(x,y(c.high));
     ctx.lineTo(x,y(c.low));
@@ -484,7 +484,24 @@ function draw4h(candles){
     ctx.fillRect(x-bodyWidth/2,top,bodyWidth,Math.max(1,bottom-top));
   });
 
-  // 绘制EMA均线
+  // 当前未收盘4小时临时K线：随实时价格刷新，仅用于图表展示
+  if(liveCandle){
+    const i=displayCandles.length-1;
+    const x=step*(i+0.5);
+    const color=liveCandle.close>=liveCandle.open?'#26a69a':'#ef5350';
+    ctx.strokeStyle=color;
+    ctx.fillStyle=color;
+    ctx.lineWidth=2;
+    ctx.beginPath();
+    ctx.moveTo(x,y(liveCandle.high));
+    ctx.lineTo(x,y(liveCandle.low));
+    ctx.stroke();
+    const top=y(Math.max(liveCandle.open,liveCandle.close));
+    const bottom=y(Math.min(liveCandle.open,liveCandle.close));
+    ctx.fillRect(x-bodyWidth/2,top,bodyWidth,Math.max(2,bottom-top));
+  }
+
+  // EMA均线仍只绘制已完成K线对应的数值
   function drawLine(values,color){
     ctx.beginPath();
     let started=false;
@@ -503,7 +520,24 @@ function draw4h(candles){
   drawLine(ema20,'#f5c542');
   drawLine(ema50,'#4da3ff');
 
-  // 价格标签
+  // 实时价格虚线及价格标签
+  if(liveCandle&&Number.isFinite(liveCandle.close)){
+    const liveY=y(liveCandle.close);
+    ctx.save();
+    ctx.strokeStyle='#b58cff';
+    ctx.lineWidth=1.5;
+    ctx.setLineDash([6,4]);
+    ctx.beginPath();
+    ctx.moveTo(0,liveY);
+    ctx.lineTo(w,liveY);
+    ctx.stroke();
+    ctx.restore();
+    ctx.fillStyle='#b58cff';
+    ctx.font='12px system-ui';
+    ctx.fillText('实时 '+fmt(liveCandle.close),w-150,Math.max(14,liveY-6));
+  }
+
+  // 价格范围标签
   ctx.fillStyle='#91a0ba';
   ctx.font='13px system-ui';
   ctx.fillText(fmt(max),8,16);
@@ -539,6 +573,26 @@ console.log('1小时收盘价数量：',closes.length);
 
 
 const candles4h=aggregate4h(historicalHourly);
+
+// 组装当前尚未完成的4小时临时K线，只供图表显示，不参与指标计算
+const chartNowSec=Math.floor(Date.now()/1000);
+const chartCurrent4hStart=Math.floor(chartNowSec/14400)*14400;
+const chartCurrentHourStart=Math.floor(chartNowSec/3600)*3600;
+const chartBucketHours=historicalHourly.filter(x=>
+  x.time>=chartCurrent4hStart&&x.time<chartCurrentHourStart
+);
+const currentHourCandle=c.find(x=>x.time===chartCurrentHourStart);
+if(currentHourCandle)chartBucketHours.push(currentHourCandle);
+chartBucketHours.sort((a,b)=>a.time-b.time);
+const liveCandle4h=chartBucketHours.length&&Number.isFinite(price)?{
+  time:chartCurrent4hStart,
+  open:chartBucketHours[0].open,
+  high:Math.max(price,...chartBucketHours.map(x=>x.high)),
+  low:Math.min(price,...chartBucketHours.map(x=>x.low)),
+  close:price,
+  volume:chartBucketHours.reduce((sum,x)=>sum+x.volume,0)
+}:null;
+
     console.log('历史1小时K线数量：',historicalHourly.length);
 console.log('历史4小时K线数量：',candles4h.length);
 if(candles4h.length<50)throw new Error('4小时K线数量不足，暂时无法可靠计算4小时指标');
@@ -922,7 +976,7 @@ if(livePriceBelowBoth&&closedCandleTrend==='强势偏多'){
     $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
     $('support').textContent=moneyOrNA(p.support);$('resistance').textContent=moneyOrNA(p.resistance);
     draw(c.slice(-168));
-    draw4h(candles4h.slice(-180));
+    draw4h(candles4h.slice(-180),liveCandle4h);
     let lines=[];
    
 
