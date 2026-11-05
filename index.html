@@ -11,7 +11,10 @@
 main{max-width:1120px;margin:auto;padding:28px 18px 48px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
 h1{font-size:25px;margin:0 0 4px}.sub,.muted{color:var(--muted);font-size:13px}
 button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px;border-radius:10px;cursor:pointer}button:hover{background:#304b78}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin:22px 0}
+.trend-card .v{font-size:16px;line-height:1.45;margin-top:7px}
+.trend-card .small{line-height:1.55}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .card{background:rgba(19,27,46,.94);border:1px solid var(--line);border-radius:15px;padding:16px;min-width:0}
 .k{color:var(--muted);font-size:12px}.v{font-size:23px;font-weight:700;margin-top:6px;overflow-wrap:anywhere}.small{font-size:12px;color:var(--muted);margin-top:4px}
 .two{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.chart-pair{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.chart-pair>.card{min-width:0}.chart-pair>.card:nth-child(3){grid-column:1/-1}.indicator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.indicator-panel{min-width:0;padding:14px;background:#0f1729;border:1px solid var(--line);border-radius:12px}.indicator-panel-title{font-weight:700;margin:0 0 8px}.indicator-panel table{width:100%;border-collapse:collapse}.indicator-panel td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px}.indicator-panel td:first-child{color:var(--muted)}.indicator-panel td:last-child{text-align:right;font-weight:700;overflow-wrap:anywhere}.indicator-volume{grid-column:1/-1;padding:10px 14px;background:#0f1729;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}.indicator-volume .indicator-label{color:var(--muted);font-size:13px}.indicator-volume .indicator-value{font-weight:700;overflow-wrap:anywhere}.section{font-weight:700;margin:0 0 12px}
@@ -53,7 +56,8 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
   <section class="grid">
     <div class="card"><div class="k">ETH 现价（USD）</div><div class="v" id="price">—</div><div class="small" id="updated">等待数据</div></div>
     <div class="card"><div class="k">24 小时涨跌</div><div class="v" id="change">—</div><div class="small" id="range">日内区间：—</div></div>
-    <div class="card"><div class="k">趋势判断（4小时）</div><div class="v" id="trend">—</div><div class="small" id="trendWhy">等待指标</div></div>
+    <div class="card trend-card"><div class="k">趋势判断（4小时）</div><div class="v" id="trend">—</div><div class="small" id="trendWhy">等待指标</div></div>
+    <div class="card trend-card"><div class="k">趋势判断（1小时）</div><div class="v" id="trend1h">—</div><div class="small" id="trendWhy1h">等待指标</div></div>
     <div class="card"><div class="k">RSI（14，1小时）</div><div class="v" id="rsi">—</div><div class="small" id="rsiHint">—</div></div>
   </section>
 
@@ -815,6 +819,23 @@ if(trend1h==='短线强势偏多'||trend1h==='短线强势偏空'){
 }else{
   consensusText1h='指标方向分散或处于中性区域，短线暂不宜强行判断方向。';
 }
+const live1hBelow20=Number.isFinite(price)&&Number.isFinite(e20_1hClosed)&&price<e20_1hClosed;
+const live1hBelow50=Number.isFinite(price)&&Number.isFinite(e50_1hClosed)&&price<e50_1hClosed;
+const live1hBelow200=Number.isFinite(price)&&Number.isFinite(e200_1hClosed)&&price<e200_1hClosed;
+const live1hAbove20=Number.isFinite(price)&&Number.isFinite(e20_1hClosed)&&price>e20_1hClosed;
+const live1hAbove50=Number.isFinite(price)&&Number.isFinite(e50_1hClosed)&&price>e50_1hClosed;
+const live1hAbove200=Number.isFinite(price)&&Number.isFinite(e200_1hClosed)&&price>e200_1hClosed;
+const live1hBelowAll=live1hBelow20&&live1hBelow50&&live1hBelow200;
+const live1hAboveAll=live1hAbove20&&live1hAbove50&&live1hAbove200;
+const trend1hLabel=live1hBelowAll?
+  '实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待1小时收盘确认）':
+  live1hAboveAll?
+    '实时走势明显偏强（价格高于EMA20/EMA50/EMA200；等待1小时收盘确认）':
+    trend1h+'（依据最近已完成1小时K线）';
+const trend1hWhy='已完成K线：'+trend1h+'；实时价格'+
+  (live1hBelowAll?'低于三条EMA':live1hAboveAll?'高于三条EMA':
+   live1hBelow20&&live1hBelow50?'低于EMA20/EMA50':
+   live1hAbove20&&live1hAbove50?'高于EMA20/EMA50':'与短中期均线位置分化')+'。';
 
 
     // 获取上一根4小时K线的EMA数值
@@ -1027,8 +1048,11 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
     $('price').textContent=fmt(price);$('updated').textContent='更新时间：'+new Date().toLocaleString();
     $('change').textContent=Number.isFinite(change)?pct(change):'暂不可用';$('change').className='v '+(Number.isFinite(change)?(change>=0?'green':'red'):'amber');
     $('range').textContent='24小时高 / 低：'+fmt(high)+' / '+fmt(low);
-    $('trend').textContent=trendLabel;$('trend').className='v '+(trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
-    $('trendWhy').textContent=strongWithLongTerm;
+    $('trend').textContent=trendLabel;$('trend').className='v '+(livePriceBelowAllThree?'red':livePriceAboveAllThree?'green':trend.includes('偏多')?'green':trend.includes('偏空')?'red':'amber');
+    $('trendWhy').textContent='已完成K线：'+closedCandleTrend+'；'+ema200CloseContext+'；实时价格'+(livePriceBelowAllThree?'低于三条EMA':livePriceAboveAllThree?'高于三条EMA':livePriceBelowBoth?'低于EMA20/EMA50':livePriceAboveBoth?'高于EMA20/EMA50':'与短中期均线位置分化')+'。';
+    $('trend1h').textContent=trend1hLabel;
+    $('trend1h').className='v '+(live1hBelowAll?'red':live1hAboveAll?'green':trend1h.includes('偏多')?'green':trend1h.includes('偏空')?'red':'amber');
+    $('trendWhy1h').textContent=trend1hWhy;
     $('rsi').textContent=Number.isFinite(rv1hClosed)?rv1hClosed.toFixed(1):'—';
     $('rsiHint').textContent=!Number.isFinite(rv1hClosed)?'数据不足，暂无法判断':rv1hClosed>=70?'偏热，留意回调':rv1hClosed<=30?'偏弱，留意反弹':'未进入传统超买/超卖区间';
     // 指标面板统一使用各周期最近一根已完成K线，避免未收盘数据导致数值跳动
