@@ -17,6 +17,9 @@ button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px
 .two{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.chart-pair{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.chart-pair>.card{min-width:0}.chart-pair>.card:nth-child(3){grid-column:1/-1}.indicator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.indicator-panel{min-width:0;padding:14px;background:#0f1729;border:1px solid var(--line);border-radius:12px}.indicator-panel-title{font-weight:700;margin:0 0 8px}.indicator-panel table{width:100%;border-collapse:collapse}.indicator-panel td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px}.indicator-panel td:first-child{color:var(--muted)}.indicator-panel td:last-child{text-align:right;font-weight:700;overflow-wrap:anywhere}.indicator-volume{grid-column:1/-1;padding:10px 14px;background:#0f1729;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}.indicator-volume .indicator-label{color:var(--muted);font-size:13px}.indicator-volume .indicator-value{font-weight:700;overflow-wrap:anywhere}.section{font-weight:700;margin:0 0 12px}
 .analysis-layout{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(280px,1fr);gap:12px;align-items:start}
 .analysis-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.analysis-highlight{grid-column:1/-1;background:linear-gradient(135deg,#172944,#142238);border:1px solid #3a5277;border-radius:12px;padding:14px;margin-bottom:12px}
+.analysis-highlight .highlight-title{font-size:13px;font-weight:700;color:#a9c8ff;margin-bottom:7px}
+.analysis-highlight p{margin:4px 0;color:#edf3ff;font-size:13px;line-height:1.7}
 .analysis-block{min-width:0;background:#0f1729;border:1px solid var(--line);border-radius:12px;padding:14px}
 .analysis-block.wide{grid-column:1/-1}
 .analysis-block h3{font-size:14px;margin:0 0 10px;color:#dce8ff;display:flex;align-items:center;gap:8px}
@@ -813,6 +816,19 @@ lines.push(
 function renderAnalysisSections(items){
   const target=$('analysis');
   target.replaceChildren();
+  const highlight=document.createElement('div');
+  highlight.className='analysis-highlight';
+  const highlightTitle=document.createElement('div');
+  highlightTitle.className='highlight-title';
+  highlightTitle.textContent='多周期重点判断';
+  const highlight4h=document.createElement('p');
+  highlight4h.textContent='4小时：'+trend+'；'+(close4h<e200_4h?'但收盘价仍在EMA200下方，长期均线压力尚未解除。':'EMA200长期背景未显示明显上方压制。');
+  const highlight1h=document.createElement('p');
+  highlight1h.textContent='1小时：'+trend1h+'。';
+  const highlightDistance=document.createElement('p');
+  highlightDistance.textContent=ema200BackgroundText;
+  highlight.append(highlightTitle,highlight4h,highlight1h,highlightDistance);
+  target.append(highlight);
   for(let i=0;i<items.length;i+=2){
     const heading=items[i]||'';
     const body=items[i+1]||'';
