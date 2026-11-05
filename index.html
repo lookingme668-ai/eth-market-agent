@@ -1156,34 +1156,31 @@ lines.push(
 function renderAnalysisSections(items){
   const target=$('analysis');
   target.replaceChildren();
+
+  // 顶部只保留多周期核心结论，具体指标和数值在下方周期分析中完整展示
   const highlight=document.createElement('div');
   highlight.className='analysis-highlight';
   const highlightTitle=document.createElement('div');
   highlightTitle.className='highlight-title';
   highlightTitle.textContent='多周期重点判断';
   const highlight4h=document.createElement('p');
-  highlight4h.textContent='4小时：'+trendLabel+'；'+(e20_4h>e50_4h?'EMA20高于EMA50，短中期均线排列偏多':'EMA20未高于EMA50，短中期均线排列尚未偏多')+'。';
+  highlight4h.textContent='4小时：'+trendLabel+'。';
   const highlight1h=document.createElement('p');
   highlight1h.textContent='1小时：'+trend1h+'。';
-  const highlightDistance4h=document.createElement('p');
-  highlightDistance4h.textContent='4小时EMA200背景：'+ema200BackgroundText;
-  const highlightEma4h=document.createElement('p');
-  highlightEma4h.textContent='4小时实时均线距离：'+liveEmaDistances4h;
-  const highlightDistance1h=document.createElement('p');
-  highlightDistance1h.textContent='1小时EMA200背景：'+ema200Text1h;
-  const highlightEma1h=document.createElement('p');
-  highlightEma1h.textContent='1小时实时均线距离：'+liveEmaDistances1h;
   const highlightConflict=document.createElement('p');
   highlightConflict.className='conflict-warning';
   highlightConflict.textContent=timeframeConflictDetails;
-  highlight.append(highlightTitle,highlight4h,highlightDistance4h,highlightEma4h,highlight1h,highlightDistance1h,highlightEma1h,highlightConflict);
+  highlight.append(highlightTitle,highlight4h,highlight1h,highlightConflict);
   target.append(highlight);
+
+  // 先建立所有详细分析区块，再按1小时左、4小时右的顺序排列
+  const blocks={};
   for(let i=0;i<items.length;i+=2){
     const heading=items[i]||'';
     const body=items[i+1]||'';
     const match=heading.match(/^【([一二三四五六])、(.+)】$/);
     const block=document.createElement('section');
-    block.className='analysis-block'+(match&&(match[1]==='一'||match[1]==='四'||match[1]==='六')?' wide':'');
+    block.className='analysis-block'+(match&&match[1]==='六'?' wide':'');
     const title=document.createElement('h3');
     const number=document.createElement('span');
     number.className='num';
@@ -1194,8 +1191,13 @@ function renderAnalysisSections(items){
     const content=document.createElement('p');
     content.textContent=body;
     block.append(title,content);
-    target.append(block);
+    blocks[match?match[1]:String(i)]=block;
   }
+
+  // 左侧1小时，右侧4小时；其余分析章节接在双周期对照区块之后
+  ['四','一','二','三','五','六'].forEach(key=>{
+    if(blocks[key])target.append(blocks[key]);
+  });
 }
 renderAnalysisSections(lines);
 
