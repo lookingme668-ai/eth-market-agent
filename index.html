@@ -845,36 +845,63 @@ else if(bearVotes===3)trend='强势偏空';
 else if(bullVotes>=2)trend='偏多';
 else if(bearVotes>=2)trend='偏空';
 
-// 将已完成4小时K线指标与实时价格位置结合：收盘指标决定基础方向，实时价格用于识别短中期均线承压/收复。
-// 若已完成K线三项指标强势偏多、但实时价格同时跌破EMA20和EMA50，则降为普通偏多；空头情形反向处理。
+// 已完成K线指标定义背景方向；实时价格位置用于识别回调、反弹及均线失守，不把两者混为一谈。
 const closedCandleTrend=trend;
 const livePriceBelowEma20=Number.isFinite(price)&&Number.isFinite(e20_4h)&&price<e20_4h;
 const livePriceBelowEma50=Number.isFinite(price)&&Number.isFinite(e50_4h)&&price<e50_4h;
 const livePriceAboveEma20=Number.isFinite(price)&&Number.isFinite(e20_4h)&&price>e20_4h;
 const livePriceAboveEma50=Number.isFinite(price)&&Number.isFinite(e50_4h)&&price>e50_4h;
+const livePriceBelowEma200=Number.isFinite(price)&&Number.isFinite(e200_4h)&&price<e200_4h;
+const livePriceAboveEma200=Number.isFinite(price)&&Number.isFinite(e200_4h)&&price>e200_4h;
 const livePriceBelowBoth=livePriceBelowEma20&&livePriceBelowEma50;
 const livePriceAboveBoth=livePriceAboveEma20&&livePriceAboveEma50;
-if(closedCandleTrend==='强势偏多'&&livePriceBelowBoth)trend='偏多';
-else if(closedCandleTrend==='强势偏空'&&livePriceAboveBoth)trend='偏空';
+const livePriceBelowAllThree=livePriceBelowBoth&&livePriceBelowEma200;
+const livePriceAboveAllThree=livePriceAboveBoth&&livePriceAboveEma200;
 
-const livePricePositionText=livePriceBelowBoth?'实时价格低于EMA20和EMA50，短中期均线承压':
+// 若实时价格已跌破全部三条均线，不再显示“偏多/偏空”，改为等待收盘确认；
+// 已完成K线的原始投票结果仍保留在closedCandleTrend中。
+if((closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多')&&livePriceBelowAllThree){
+  trend='震荡 / 等待确认';
+}else if((closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空')&&livePriceAboveAllThree){
+  trend='震荡 / 等待确认';
+}else if(closedCandleTrend==='强势偏多'&&livePriceBelowBoth){
+  trend='偏多';
+}else if(closedCandleTrend==='强势偏空'&&livePriceAboveBoth){
+  trend='偏空';
+}
+
+const livePricePositionText=livePriceBelowAllThree?'实时价格低于EMA20、EMA50和EMA200，短中长期均线均构成压制':
+  livePriceAboveAllThree?'实时价格高于EMA20、EMA50和EMA200，短中长期均线均在价格下方':
+  livePriceBelowBoth?'实时价格低于EMA20和EMA50，短中期均线承压':
   livePriceAboveBoth?'实时价格高于EMA20和EMA50，短中期价格位置偏强':
   Number.isFinite(price)&&Number.isFinite(e20_4h)&&Number.isFinite(e50_4h)?
     '实时价格位于EMA20与EMA50之间，短中期均线位置分化':
     '实时价格或短中期均线数据不足，暂无法判断实时均线位置';
-const livePriceTrendCaveat=livePriceBelowBoth?'实时价格低于EMA20/EMA50，短线承压':
-  livePriceAboveBoth?'实时价格已高于EMA20/EMA50':
+const livePriceTrendCaveat=livePriceBelowAllThree?'实时价格已跌破EMA20/EMA50/EMA200，当前实时走势偏弱，等待4小时收盘确认':
+  livePriceAboveAllThree?'实时价格已站上EMA20/EMA50/EMA200，仍需等待4小时收盘确认':
+  livePriceBelowBoth?'实时价格低于EMA20/EMA50，短线回调承压':
+  livePriceAboveBoth?'实时价格已高于EMA20/EMA50，短线位置偏强':
   '实时价格尚未同时站上或跌破EMA20/EMA50';
 
 const ema200CloseContext=close4h>e200_4h?'最近已完成4小时收盘位于EMA200上方':close4h<e200_4h?'最近已完成4小时收盘位于EMA200下方':'最近已完成4小时收盘接近EMA200';
-const ema200LivePressure=Number.isFinite(ema200DistancePct)&&ema200DistancePct<0;
-const ema200Caveat=ema200LivePressure?'实时价格仍低于EMA200，长期均线压力尚未解除':
-  Number.isFinite(ema200DistancePct)&&ema200DistancePct>=0?'实时价格已位于EMA200上方，仍需观察收盘能否持续站稳':'';
-const trendLabel=(trend==='强势偏多'?'短中期强势偏多':
-  trend==='强势偏空'?'短中期强势偏空':
-  trend==='偏多'?'短中期偏多':
-  trend==='偏空'?'短中期偏空':'短中期震荡 / 等待确认')+
-  '（'+livePriceTrendCaveat+(ema200LivePressure?'；长期EMA200仍有压力':'')+'）';
+const ema200LivePressure=livePriceBelowEma200;
+const ema200Caveat=livePriceBelowEma200&&close4h>e200_4h?
+  '实时价格虽低于EMA200，但最近已完成4小时收盘仍在EMA200上方，尚未确认4小时级别有效跌破':
+  livePriceBelowEma200&&close4h<=e200_4h?
+    '实时价格与最近已完成4小时收盘均低于EMA200，长期均线压力明显':
+    livePriceAboveEma200&&close4h<e200_4h?
+      '实时价格已回到EMA200上方，但最近已完成4小时收盘仍在其下，尚未确认有效收复':
+      livePriceAboveEma200?
+        '实时价格已位于EMA200上方，仍需观察4小时收盘能否持续站稳':'';
+const trendLabel=livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多')?
+  '实时走势偏弱（已完成4小时K线指标仍偏多；等待收盘确认）':
+  livePriceAboveAllThree&&(closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空')?
+    '实时走势反弹偏强（已完成4小时K线指标仍偏空；等待收盘确认）':
+    (trend==='强势偏多'?'短中期强势偏多':
+     trend==='强势偏空'?'短中期强势偏空':
+     trend==='偏多'?'短中期偏多':
+     trend==='偏空'?'短中期偏空':'短中期震荡 / 等待确认')+
+    '（'+livePriceTrendCaveat+(ema200LivePressure?'；长期EMA200仍有压力':'')+'）';
 const strong=closedCandleTrend==='强势偏多'?'已完成4小时K线的EMA结构、RSI与MACD三项一致偏多':
   closedCandleTrend==='强势偏空'?'已完成4小时K线的EMA结构、RSI与MACD三项一致偏空':
   trend==='偏多'?'多数已完成4小时K线指标支持偏多，仍需留意指标分歧':
@@ -966,10 +993,14 @@ if(Number.isFinite(m4h.hist)){
 }
 
 let consensusText='';
-if(livePriceBelowBoth&&closedCandleTrend==='强势偏多'){
-  consensusText='已完成4小时K线的EMA、RSI与MACD三项一致偏多，但实时价格已同时低于EMA20和EMA50，短线承压；需观察能否重新收复均线。';
-}else if(livePriceAboveBoth&&closedCandleTrend==='强势偏空'){
-  consensusText='已完成4小时K线的EMA、RSI与MACD三项一致偏空，但实时价格已同时高于EMA20和EMA50，出现短线反弹；需观察能否持续站稳均线。';
+if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多')){
+  consensusText='已完成4小时K线指标仍支持偏多，但实时价格已跌破EMA20、EMA50和EMA200，当前实时走势偏弱；最近已完成4小时收盘若仍在EMA200上方，则长期跌破尚未得到收盘确认。应等待价格重新收复均线，或等待后续4小时收盘确认方向。';
+}else if(livePriceAboveAllThree&&(closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空')){
+  consensusText='已完成4小时K线指标仍偏空，但实时价格已站上EMA20、EMA50和EMA200，出现较强反弹；仍需等待4小时收盘确认是否有效收复均线。';
+}else if(livePriceBelowBoth&&(closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多')){
+  consensusText='已完成4小时K线指标支持偏多，但实时价格低于EMA20和EMA50，短中期回调承压；观察能否重新收复均线。';
+}else if(livePriceAboveBoth&&(closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空')){
+  consensusText='已完成4小时K线指标偏空，但实时价格高于EMA20和EMA50，出现短线反弹；观察能否持续站稳均线。';
 }else if(trend==='强势偏多'||trend==='强势偏空'){
   consensusText='已完成4小时K线的三项指标方向一致，当前信号一致性较高，但仍需结合实时价格位置与后续收盘确认。';
 }else if(trend==='偏多'){
