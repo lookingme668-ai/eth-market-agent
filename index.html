@@ -709,7 +709,7 @@ const strong=trend==='强势偏多'?'短中期EMA结构、RSI与MACD三项一致
   trend==='偏多'?'多数短中期指标支持偏多，仍需留意指标分歧':
   trend==='偏空'?'多数短中期指标支持偏空，仍需留意指标分歧':
   '短中期指标暂未形成明确多数方向';
-const strongWithLongTerm=strong+'；'+ema200CloseContext+ema200Caveat+'。';
+const strongWithLongTerm=strong+'；'+ema200CloseContext+(ema200Caveat?'；'+ema200Caveat:'')+'。';
 
 let timeframeText='';
 const fourHourBull=trend.includes('偏多');
@@ -867,7 +867,7 @@ function renderAnalysisSections(items){
   highlightTitle.className='highlight-title';
   highlightTitle.textContent='多周期重点判断';
   const highlight4h=document.createElement('p');
-  highlight4h.textContent='4小时：'+trendLabel+'；'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+ema200Caveat+'。';
+  highlight4h.textContent='4小时：'+trendLabel+'；'+ema200CloseContext+'。'+(e20_4h>e50_4h?'短中期EMA20高于EMA50':'短中期EMA20未高于EMA50')+(ema200Caveat?'；'+ema200Caveat:'')+'。';
   const highlight1h=document.createElement('p');
   highlight1h.textContent='1小时：'+trend1h+'。';
   const highlightDistance=document.createElement('p');
