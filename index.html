@@ -335,7 +335,7 @@ function aggregate4h(hourly){
     const saved=localStorage.getItem(storageKey);
     if(saved)state=JSON.parse(saved);
   }catch(e){state=null;}
-  if(!(state&&Number.isFinite(state.level)&&['waiting_close','confirmed','retested','confirmed_retest','failed'].includes(state.phase)))state=null;
+  if(!(state&&Number.isFinite(state.level)&&Number.isFinite(state.lastProcessedTime)&&['waiting_close','confirmed','retested','confirmed_retest','failed'].includes(state.phase)&&(!['retested','confirmed_retest'].includes(state.phase)||Number.isFinite(state.retestHigh))))state=null;
   let rearmed=false;
   const save=()=>{
     try{
@@ -352,13 +352,13 @@ function aggregate4h(hourly){
         else{state.phase='failed';state.failedTime=candle.time;break;}
       }else if(state.phase==='confirmed'){
         if(candle.close<state.level){state.phase='failed';state.failedTime=candle.time;break;}
-        if(candle.low<=state.level*(1+tolerance)&&candle.high>=state.level&&candle.close>=state.level){
+        if(candle.low>=state.level*(1-tolerance)&&candle.low<=state.level*(1+tolerance)&&candle.high>=state.level&&candle.close>=state.level){
           state.phase='retested';state.retestHigh=candle.high;state.retestTime=candle.time;
         }
       }else if(state.phase==='retested'){
         if(candle.close<state.level){state.phase='failed';state.failedTime=candle.time;break;}
         if(candle.close>state.retestHigh){state.phase='confirmed_retest';state.confirmedRetestTime=candle.time;}
-        else if(candle.low<=state.level*(1+tolerance)&&candle.close>=state.level){
+        else if(candle.low>=state.level*(1-tolerance)&&candle.low<=state.level*(1+tolerance)&&candle.high>=state.level&&candle.close>=state.level){
           state.retestHigh=candle.high;state.retestTime=candle.time;
         }
       }else if(state.phase==='confirmed_retest'&&candle.close<state.level){
