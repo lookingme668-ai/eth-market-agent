@@ -14,7 +14,7 @@ button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px
 .grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:22px 0}
 .card{background:rgba(19,27,46,.94);border:1px solid var(--line);border-radius:15px;padding:16px;min-width:0}
 .k{color:var(--muted);font-size:12px}.v{font-size:23px;font-weight:700;margin-top:6px;overflow-wrap:anywhere}.small{font-size:12px;color:var(--muted);margin-top:4px}
-.two{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.chart-pair{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.chart-pair>.card{min-width:0}.chart-pair>.card:nth-child(3){grid-column:1/-1}.indicator-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.indicator-item{min-width:0;padding:12px;background:#0f1729;border:1px solid var(--line);border-radius:10px}.indicator-label{color:var(--muted);font-size:12px}.indicator-value{font-size:16px;font-weight:700;margin-top:5px;overflow-wrap:anywhere}.indicator-heading{grid-column:1/-1;color:var(--muted);font-size:13px;font-weight:700;padding-top:6px}.section{font-weight:700;margin:0 0 12px}
+.two{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}.chart-pair{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}.chart-pair>.card{min-width:0}.chart-pair>.card:nth-child(3){grid-column:1/-1}.indicator-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.indicator-panel{min-width:0;padding:14px;background:#0f1729;border:1px solid var(--line);border-radius:12px}.indicator-panel-title{font-weight:700;margin:0 0 8px}.indicator-panel table{width:100%;border-collapse:collapse}.indicator-panel td{padding:10px 4px;border-bottom:1px solid var(--line);font-size:13px}.indicator-panel td:first-child{color:var(--muted)}.indicator-panel td:last-child{text-align:right;font-weight:700;overflow-wrap:anywhere}.indicator-volume{grid-column:1/-1;padding:10px 14px;background:#0f1729;border:1px solid var(--line);border-radius:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}.indicator-volume .indicator-label{color:var(--muted);font-size:13px}.indicator-volume .indicator-value{font-weight:700;overflow-wrap:anywhere}.section{font-weight:700;margin:0 0 12px}
 .pill{display:inline-block;padding:4px 9px;border-radius:999px;font-size:12px;background:#24334c;color:#d8e6ff}
 .green{color:var(--green)}.red{color:var(--red)}.amber{color:var(--amber)}
 table{width:100%;border-collapse:collapse}td{padding:9px 4px;border-bottom:1px solid var(--line)}td:last-child{text-align:right;font-weight:600}
@@ -22,7 +22,7 @@ ul{padding-left:19px;margin:8px 0}li{margin:7px 0}.report{white-space:pre-wrap}
 canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
 .footer{margin-top:16px;color:var(--muted);font-size:12px}
 .status{display:flex;gap:8px;align-items:center}.dot{width:8px;height:8px;border-radius:50%;background:var(--amber)}.dot.ok{background:var(--green)}.dot.bad{background:var(--red)}
-@media(max-width:900px){.indicator-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}\n@media(max-width:760px){main{padding:20px 12px 36px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.chart-pair>.card:nth-child(3){grid-column:auto}canvas{height:220px}.v{font-size:20px}}
+@media(max-width:760px){main{padding:20px 12px 36px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.two{grid-template-columns:1fr}.chart-pair>.card:nth-child(3){grid-column:auto}.indicator-grid{grid-template-columns:1fr}.indicator-volume{grid-column:auto}canvas{height:220px}.v{font-size:20px}}
 </style>
 </head>
 <body>
@@ -56,18 +56,30 @@ canvas{display:block;width:100%;height:260px;max-width:100%;object-fit:fill}
     <div class="card">
       <h2 class="section">技术指标</h2>
       <div class="indicator-grid">
-        <div class="indicator-item"><div class="indicator-label">EMA 20（1小时）</div><div class="indicator-value" id="ema20">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">EMA 50（1小时）</div><div class="indicator-value" id="ema50">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">EMA 200（1小时）</div><div class="indicator-value" id="ema200">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">MACD（12,26,9）</div><div class="indicator-value" id="macd">—</div></div>
-        <div class="indicator-heading">4小时指标</div>
-        <div class="indicator-item"><div class="indicator-label">EMA 20（4小时）</div><div class="indicator-value" id="ema20_4h">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">EMA 50（4小时）</div><div class="indicator-value" id="ema50_4h">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">RSI 14（4小时）</div><div class="indicator-value" id="rsi4h">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">MACD（4小时）</div><div class="indicator-value" id="macd4h">—</div></div>
-        <div class="indicator-item"><div class="indicator-label">24小时成交量</div><div class="indicator-value" id="volume">—</div></div>
+        <div class="indicator-panel">
+          <h3 class="indicator-panel-title">1小时技术指标</h3>
+          <table>
+            <tr><td>EMA 20</td><td id="ema20">—</td></tr>
+            <tr><td>EMA 50</td><td id="ema50">—</td></tr>
+            <tr><td>EMA 200</td><td id="ema200">—</td></tr>
+            <tr><td>MACD（12,26,9）</td><td id="macd">—</td></tr>
+          </table>
+        </div>
+        <div class="indicator-panel">
+          <h3 class="indicator-panel-title">4小时技术指标</h3>
+          <table>
+            <tr><td>EMA 20</td><td id="ema20_4h">—</td></tr>
+            <tr><td>EMA 50</td><td id="ema50_4h">—</td></tr>
+            <tr><td>RSI 14</td><td id="rsi4h">—</td></tr>
+            <tr><td>MACD（12,26,9）</td><td id="macd4h">—</td></tr>
+          </table>
+        </div>
+        <div class="indicator-volume">
+          <span class="indicator-label">24小时成交量</span>
+          <span class="indicator-value" id="volume">—</span>
+        </div>
       </div>
-      <p class="small">指标基于最近可获取的 Coinbase 1小时 K线计算，可能与其他交易所略有差异。</p>
+      <p class="small">指标基于最近可获取的 Coinbase K线计算，可能与其他交易所略有差异。</p>
     </div>
   </section>
 
