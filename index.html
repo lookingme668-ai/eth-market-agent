@@ -418,7 +418,7 @@ canvas{height:280px}
   </section>
   <section class="backtest-section card">
     <h2 class="section">支撑阻力算法历史回测</h2>
-    <p class="small backtest-method">使用最近约60天已完成K线进行逐根历史模拟。每个时点只用当时可获得的数据识别区域，后续K线只用于评估结果；触碰后观察未来12根1小时K线或6根4小时K线。</p>
+    <p class="small backtest-method">使用最近约60天已完成K线，前70%作为历史预热区间，后30%作为样本外验证区间。每个时点只用当时可获得的数据识别区域，后续K线只用于评估结果；触碰后观察未来12根1小时K线或6根4小时K线。</p>
     <div class="backtest-grid"><div class="backtest-panel" id="backtest1h"><div class="muted">1小时回测计算中…</div></div><div class="backtest-panel" id="backtest4h"><div class="muted">4小时回测计算中…</div></div></div>
     <div class="small backtest-note">成功率仅按已明确先触及有利或不利目标的样本计算；未确认与同一根K线双向触发单独列出，不计入成功率。回测不等于未来表现，也未扣除手续费与滑点。</div>
   </section>
@@ -5950,7 +5950,9 @@ refresh();setInterval(refresh,30000);
 let historicalBacktestCache=null;
 function runSupportResistanceBacktest(candles,timeframe){
   const horizon=timeframe==='1小时'?12:6,events=[],lastEvent={support:null,resistance:null};
-  for(let i=34;i<candles.length-horizon;i++){
+  // 前70%仅提供历史上下文；只统计后30%样本外区间内产生的触碰事件
+  const testStart=Math.max(34,Math.floor(candles.length*.7));
+  for(let i=testStart;i<candles.length-horizon;i++){
     const history=candles.slice(0,i),profile=buildSupportResistanceProfile(history,candles[i-1].close,timeframe);
     const current=candles[i],atr=profile.atr;if(!Number.isFinite(atr)||atr<=0)continue;
     for(const side of ['support','resistance']){
@@ -5972,14 +5974,14 @@ function runSupportResistanceBacktest(candles,timeframe){
     const group=events.filter(x=>x.score>=bin.min&&x.score<=bin.max),decided=group.filter(x=>x.outcome==='success'||x.outcome==='failure'),wins=decided.filter(x=>x.outcome==='success').length;
     return {label:bin.label,total:group.length,decided:decided.length,rate:decided.length?wins/decided.length*100:NaN};
   });
-  return {timeframe,horizon,events,all:summarize(events),support:summarize(events.filter(x=>x.side==='support')),resistance:summarize(events.filter(x=>x.side==='resistance')),bins,from:candles[0]?.time,to:candles.at(-1)?.time,count:candles.length};
+  return {timeframe,horizon,events,all:summarize(events),support:summarize(events.filter(x=>x.side==='support')),resistance:summarize(events.filter(x=>x.side==='resistance')),bins,from:candles[testStart]?.time,to:candles.at(-1)?.time,count:candles.length,testCount:Math.max(0,candles.length-testStart-horizon)};
 }
 function renderBacktestPanel(result){
   const s=result.all,decided=s.success+s.failure,rate=decided?s.success/decided*100:NaN,rateText=Number.isFinite(rate)?rate.toFixed(1)+'%':'样本不足';
   const detailRows=[['支撑',result.support],['阻力',result.resistance]].map(([label,x])=>'<tr><td>'+label+'</td><td>'+x.total+'</td><td>'+x.success+'</td><td>'+x.failure+'</td><td>'+x.ambiguous+'</td><td>'+x.unresolved+'</td></tr>').join('');
   const scoreRows=result.bins.map(x=>'<tr><td>'+x.label+'</td><td>'+x.total+'</td><td>'+x.decided+'</td><td>'+(Number.isFinite(x.rate)?x.rate.toFixed(1)+'%':'—')+'</td></tr>').join('');
   const from=result.from?new Date(result.from*1000).toLocaleDateString():'—',to=result.to?new Date(result.to*1000).toLocaleDateString():'—';
-  return '<div class="backtest-title">'+result.timeframe+' · '+result.count+'根K线</div><div class="backtest-stats"><div class="backtest-stat"><span>已判定成功率</span><strong>'+rateText+'</strong></div><div class="backtest-stat"><span>有效判定样本</span><strong>'+decided+'</strong></div><div class="backtest-stat"><span>触碰事件总数</span><strong>'+s.total+'</strong></div></div><table class="backtest-table"><thead><tr><th>区域</th><th>事件</th><th>成功</th><th>失败</th><th>双向</th><th>未确认</th></tr></thead><tbody>'+detailRows+'</tbody></table><div class="backtest-title" style="margin-top:15px">按强度分组</div><table class="backtest-table"><thead><tr><th>强度</th><th>事件数</th><th>已判定</th><th>成功率</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="backtest-foot">测试范围：'+from+' 至 '+to+'；触碰后观察 '+result.horizon+' 根同周期K线。成功率分母仅含成功与失败。</div>';
+  return '<div class="backtest-title">'+result.timeframe+' · 样本外 '+result.testCount+' 根K线</div><div class="backtest-stats"><div class="backtest-stat"><span>已判定成功率</span><strong>'+rateText+'</strong></div><div class="backtest-stat"><span>有效判定样本</span><strong>'+decided+'</strong></div><div class="backtest-stat"><span>触碰事件总数</span><strong>'+s.total+'</strong></div></div><table class="backtest-table"><thead><tr><th>区域</th><th>事件</th><th>成功</th><th>失败</th><th>双向</th><th>未确认</th></tr></thead><tbody>'+detailRows+'</tbody></table><div class="backtest-title" style="margin-top:15px">按强度分组</div><table class="backtest-table"><thead><tr><th>强度</th><th>事件数</th><th>已判定</th><th>成功率</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="backtest-foot">测试范围：'+from+' 至 '+to+'；前70%作为历史预热，后30%作为样本外测试；触碰后观察 '+result.horizon+' 根同周期K线。成功率分母仅含成功与失败。</div>';
 }
 function updateHistoricalBacktest(hourlyCandles,fourHourCandles){
   const key=(hourlyCandles.at(-1)?.time||0)+'_'+(fourHourCandles.at(-1)?.time||0);
