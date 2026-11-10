@@ -907,9 +907,15 @@ function updateLivePredictionTracker(profile1h,profile4h,price,closed1h,closed4h
       // 只在实时价格进入区域时建立记录；每个周期、方向、K线桶最多记录一次
       if(Number.isFinite(price)&&price>=zone.low&&price<=zone.high){
         const bucketStart=Math.floor(nowSec/cfg.seconds)*cfg.seconds;
+        const atr=cfg.profile.atr;
         const exists=events.some(e=>e.timeframe===cfg.timeframe&&e.side===side&&e.bucketStart===bucketStart);
-        if(!exists&&Number.isFinite(cfg.profile.atr)&&cfg.profile.atr>0){
-          const anchor=zone.center,atr=cfg.profile.atr;
+        const recentSameZone=events.some(e=>
+          e.timeframe===cfg.timeframe&&e.side===side&&
+          Math.abs(e.center-zone.center)<=Math.max(atr*.6,zone.center*.001)&&
+          nowSec-e.createdAt<=6*cfg.seconds
+        );
+        if(!exists&&!recentSameZone&&Number.isFinite(atr)&&atr>0){
+          const anchor=zone.center;
           events.push({
             id:cfg.timeframe+'_'+side+'_'+bucketStart,
             timeframe:cfg.timeframe,side,bucketStart,createdAt:nowSec,
@@ -935,7 +941,7 @@ function updateLivePredictionTracker(profile1h,profile4h,price,closed1h,closed4h
         if(good){outcome='成功';break;}
         if(bad){outcome='失败';break;}
       }
-      event.observedBars=future.length;
+      if(event.observedBars!==future.length){event.observedBars=future.length;changed=true;}
       if(outcome){event.status=outcome;event.outcome=outcome;event.completedAt=future[Math.max(0,future.length-1)]?.time||null;changed=true;}
       else if(future.length>=event.horizon){event.status='未确认';event.outcome='未确认';event.completedAt=future[event.horizon-1]?.time||null;changed=true;}
     }
