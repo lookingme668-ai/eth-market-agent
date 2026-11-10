@@ -210,6 +210,10 @@ canvas{height:280px}
   box-shadow:0 9px 24px rgba(0,0,0,.18);
 }
 .support-resistance-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.support-resistance-column{display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:12px;min-width:0}
+.support-resistance-column>.section{margin:0 0 2px;font-size:16px}
+.support-resistance-column>.card{min-width:0}
+
 .backtest-section{margin:24px 0;padding:20px}.backtest-method{margin:-4px 0 16px;line-height:1.8}
 .backtest-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .backtest-panel{min-width:0;padding:15px;background:rgba(6,13,25,.48);border:1px solid rgba(145,169,205,.20);border-radius:12px}
@@ -224,7 +228,7 @@ canvas{height:280px}
 
 .support-resistance-grid>.card{min-height:132px}
 .support-resistance-grid .v{font-size:22px}
-@media(max-width:760px){.support-resistance-grid{grid-template-columns:1fr 1fr;gap:10px}.support-resistance-grid .v{font-size:18px}}
+@media(max-width:760px){.support-resistance-grid{grid-template-columns:1fr;gap:14px}.support-resistance-grid .v{font-size:18px}}
 .analysis-layout{margin-top:26px}
 .analysis-sections{gap:16px}
 .analysis-highlight,.analysis-block{
@@ -411,10 +415,16 @@ canvas{height:280px}
   </section>
 
   <section class="grid support-resistance-grid">
-    <div class="card"><div class="k">1小时主要支撑区域</div><div class="v green" id="support">—</div><div class="small" id="supportDetail">局部低点聚类、触碰、反弹、成交量与ATR综合估算</div></div>
-    <div class="card"><div class="k">1小时主要阻力区域</div><div class="v red" id="resistance">—</div><div class="small" id="resistanceDetail">局部高点聚类、触碰、回落、成交量与ATR综合估算</div></div>
-    <div class="card"><div class="k">4小时主要支撑区域</div><div class="v green" id="support4h">—</div><div class="small" id="support4hDetail">结合较大周期结构识别</div></div>
-    <div class="card"><div class="k">4小时主要阻力区域</div><div class="v red" id="resistance4h">—</div><div class="small" id="resistance4hDetail">结合较大周期结构识别</div></div>
+    <div class="support-resistance-column">
+      <h2 class="section">1小时支撑与阻力</h2>
+      <div class="card"><div class="k">1小时主要支撑区域</div><div class="v green" id="support">—</div><div class="small" id="supportDetail">局部低点聚类、触碰、反弹、成交量与ATR综合估算</div></div>
+      <div class="card"><div class="k">1小时主要阻力区域</div><div class="v red" id="resistance">—</div><div class="small" id="resistanceDetail">局部高点聚类、触碰、回落、成交量与ATR综合估算</div></div>
+    </div>
+    <div class="support-resistance-column">
+      <h2 class="section">4小时支撑与阻力</h2>
+      <div class="card"><div class="k">4小时主要支撑区域</div><div class="v green" id="support4h">—</div><div class="small" id="support4hDetail">结合较大周期结构识别</div></div>
+      <div class="card"><div class="k">4小时主要阻力区域</div><div class="v red" id="resistance4h">—</div><div class="small" id="resistance4hDetail">结合较大周期结构识别</div></div>
+    </div>
   </section>
   <section class="backtest-section card">
     <h2 class="section">支撑阻力算法历史回测</h2>
