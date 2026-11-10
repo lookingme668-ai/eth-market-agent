@@ -782,7 +782,9 @@ function buildSupportResistanceProfile(candles,referencePrice,timeframe){
   const s=zones(lows,true),r=zones(highs,false);
   return {timeframe,support:s.length?s[0]:null,resistance:r.length?r[0]:null,atr};
 }
-function formatZone(z){return z?'
+function formatZone(z){return z?'$'+z.low.toFixed(2)+' – $'+z.high.toFixed(2):'数据不足';}
+function zoneDetails(z){return z?'强度 '+z.score+'/100 · 局部触碰 '+z.touches+' 次 · 后续平均反应 '+z.reaction.toFixed(2)+'% · 成交量比 '+z.volumeRatio.toFixed(2)+'x':'尚未识别到有效区域';}
+function pivots(candles){
   const lows=[],highs=[];
   for(let i=2;i<candles.length-2;i++){
     const c=candles[i];
