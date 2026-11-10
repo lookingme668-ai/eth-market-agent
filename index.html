@@ -1012,9 +1012,14 @@ if(lastCrossIndex>=0 && Number.isFinite(price)){
       maxDrawdown=Math.max(maxDrawdown,drawdown);
     }
 
-    // 纳入当前实时价格
-    highest=Math.max(highest,price);
-    lowest=Math.min(lowest,price);
+    // 纳入交叉确认之后的当前未完成4小时K线高低点与实时价格，避免遗漏盘中极值
+    if(liveCandle4h&&liveCandle4h.time>candles4h[lastCrossIndex].time){
+      highest=Math.max(highest,liveCandle4h.high,price);
+      lowest=Math.min(lowest,liveCandle4h.low,price);
+    }else{
+      highest=Math.max(highest,price);
+      lowest=Math.min(lowest,price);
+    }
 
     const rise=(highest-crossClose)/crossClose*100;
 
@@ -1118,12 +1123,18 @@ const live1hAbove50=Number.isFinite(price)&&Number.isFinite(e50_1hClosed)&&price
 const live1hAbove200=Number.isFinite(price)&&Number.isFinite(e200_1hClosed)&&price>e200_1hClosed;
 const live1hBelowAll=live1hBelow20&&live1hBelow50&&live1hBelow200;
 const live1hAboveAll=live1hAbove20&&live1hAbove50&&live1hAbove200;
+const close1hBelow20=Number.isFinite(close1hClosed)&&Number.isFinite(e20_1hClosed)&&close1hClosed<e20_1hClosed;
+const close1hBelow50=Number.isFinite(close1hClosed)&&Number.isFinite(e50_1hClosed)&&close1hClosed<e50_1hClosed;
 const close1hBelowEma200=Number.isFinite(close1hClosed)&&Number.isFinite(e200_1hClosed)&&close1hClosed<e200_1hClosed;
+const close1hAbove20=Number.isFinite(close1hClosed)&&Number.isFinite(e20_1hClosed)&&close1hClosed>e20_1hClosed;
+const close1hAbove50=Number.isFinite(close1hClosed)&&Number.isFinite(e50_1hClosed)&&close1hClosed>e50_1hClosed;
 const close1hAboveEma200=Number.isFinite(close1hClosed)&&Number.isFinite(e200_1hClosed)&&close1hClosed>e200_1hClosed;
+const close1hBelowAll=close1hBelow20&&close1hBelow50&&close1hBelowEma200;
+const close1hAboveAll=close1hAbove20&&close1hAbove50&&close1hAboveEma200;
 const trend1hLabel=live1hBelowAll?
-  (close1hBelowEma200?'实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待1小时收盘确认）':'实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待1小时收盘确认）'):
+  (close1hBelowAll?'实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；最近已完成1小时收盘也低于三条均线，收盘偏弱已确认）':'实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待1小时收盘确认）'):
   live1hAboveAll?
-    (close1hAboveEma200?'实时走势明显偏强（价格高于EMA20/EMA50/EMA200；EMA200收盘站上已确认，短中期状态等待1小时收盘确认）':'实时走势明显偏强（价格高于EMA20/EMA50/EMA200；等待1小时收盘确认）'):
+    (close1hAboveAll?'实时走势明显偏强（价格高于EMA20/EMA50/EMA200；最近已完成1小时收盘也高于三条均线，收盘偏强已确认）':'实时走势明显偏强（价格高于EMA20/EMA50/EMA200；等待1小时收盘确认）'):
     trend1h+'（依据最近已完成1小时K线）';
 const trend1hWhy=[
   '已完成K线综合判断：'+trend1h+'。'+consensusText1h,
@@ -1180,8 +1191,14 @@ const livePriceBelowBoth=livePriceBelowEma20&&livePriceBelowEma50;
 const livePriceAboveBoth=livePriceAboveEma20&&livePriceAboveEma50;
 const livePriceBelowAllThree=livePriceBelowBoth&&livePriceBelowEma200;
 const livePriceAboveAllThree=livePriceAboveBoth&&livePriceAboveEma200;
+const close4hBelow20=Number.isFinite(close4h)&&Number.isFinite(e20_4h)&&close4h<e20_4h;
+const close4hBelow50=Number.isFinite(close4h)&&Number.isFinite(e50_4h)&&close4h<e50_4h;
 const close4hBelowEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h<e200_4h;
+const close4hAbove20=Number.isFinite(close4h)&&Number.isFinite(e20_4h)&&close4h>e20_4h;
+const close4hAbove50=Number.isFinite(close4h)&&Number.isFinite(e50_4h)&&close4h>e50_4h;
 const close4hAboveEma200=Number.isFinite(close4h)&&Number.isFinite(e200_4h)&&close4h>e200_4h;
+const close4hBelowAll=close4hBelow20&&close4hBelow50&&close4hBelowEma200;
+const close4hAboveAll=close4hAbove20&&close4hAbove50&&close4hAboveEma200;
 
 // 若实时价格已跌破全部三条均线，不再显示“偏多/偏空”，改为等待收盘确认；
 // 已完成K线的原始投票结果仍保留在closedCandleTrend中。
@@ -1222,7 +1239,7 @@ const trendLabel=livePriceBelowAllThree?
   (closedCandleTrend==='强势偏多'||closedCandleTrend==='偏多'?
     (close4hBelowEma200?'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线指标仍偏多，但实时走势明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）'):
    closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
-    '已完成4小时K线指标偏空，实时走势也明显偏弱（价格低于EMA20/EMA50/EMA200）':
+    (close4hBelowAll?'已完成4小时K线指标偏空，实时价格与最近已完成收盘均低于EMA20/EMA50/EMA200，收盘偏弱已确认':'已完成4小时K线指标偏空，实时价格低于EMA20/EMA50/EMA200；等待后续4小时收盘确认'):
     (close4hBelowEma200?'已完成4小时K线：震荡 / 等待确认；实时走势：明显偏弱（价格低于EMA20/EMA50/EMA200；EMA200收盘跌破已确认，短中期状态等待4小时收盘确认）':'已完成4小时K线：震荡 / 等待确认；实时走势：明显偏弱（价格低于EMA20/EMA50/EMA200；等待4小时收盘确认）')):
   livePriceAboveAllThree?
   (closedCandleTrend==='强势偏空'||closedCandleTrend==='偏空'?
@@ -1401,7 +1418,7 @@ lines.push(
 lines.push('【三、最近一次EMA交叉】');
 lines.push(
   '当前交叉信号：'+cross4h+'\n'+
-  '最近一次历史交叉：'+lastCrossType+'\n'+
+  '最近一次历史交叉：'+lastCrossType+'（统计范围：最近约60天可用4小时数据）'+'\n'+
   '交叉确认时间：'+lastCrossTime+'\n'+
   '交叉后经过：'+barsSinceCross+'\n'+
   '距今时间：'+daysSinceCross
@@ -1410,11 +1427,11 @@ lines.push(
 // 四、交叉后的价格表现
 lines.push('【四、交叉后的价格表现】');
 lines.push(
-  '当前累计涨跌幅：'+changeSinceCross+'\n'+
-  '交叉后最高价：'+highestSinceCross+'\n'+
-  '交叉后最低价：'+lowestSinceCross+'\n'+
-  '最大上涨幅度：'+maxRiseSinceCross+'\n'+
-  '最大收盘回撤（按交叉后已完成4小时K线收盘价计算，不含盘中最低价）：'+maxDrawdownSinceCross
+  '当前累计涨跌幅（相对交叉确认收盘价）：'+changeSinceCross+'\n'+
+  '交叉后最高价（含已完成K线盘中高点及当前未完成4小时K线高点）：'+highestSinceCross+'\n'+
+  '交叉后最低价（含已完成K线盘中低点及当前未完成4小时K线低点）：'+lowestSinceCross+'\n'+
+  '最大盘中上涨幅度（相对交叉确认收盘价）：'+maxRiseSinceCross+'\n'+
+  '最大收盘回撤（仅按交叉后已完成4小时K线收盘价计算，不含盘中低点及未收盘K线）：'+maxDrawdownSinceCross
 );
 
 // 一、1小时短线动能与多周期联动
