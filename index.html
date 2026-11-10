@@ -1291,7 +1291,7 @@ if(fourHourBull&&oneHourBear){
   timeframeActionText='关注动态支撑是否失守，以及反弹能否收复1小时EMA20；避免把短暂反弹误判为趋势反转。';
 }
 
-const timeframeConflictSummary='预警等级：'+timeframeConflictLevel+'。'+timeframeConflictTitle+'。'+timeframeConflictText;
+const timeframeConflictSummary='多周期冲突等级：'+timeframeConflictLevel+'。'+timeframeConflictTitle+'。'+timeframeConflictText+'（此等级仅表示1小时与4小时方向是否冲突，不代表市场整体风险高低。）';
 const timeframeConflictDetails=timeframeConflictSummary+'\n观察条件：'+timeframeActionText;
 
 const emaText=(e20_4h>e50_4h?'EMA20高于EMA50，短中期均线排列偏多':e20_4h<e50_4h?'EMA20低于EMA50，短中期均线排列偏空':'EMA20与EMA50接近，短中期均线排列暂不明确')+'；最近已完成4小时收盘价'+(close4h>e20_4h?'高于EMA20':close4h<e20_4h?'低于EMA20':'接近EMA20')+'，'+(close4h>e50_4h?'高于EMA50':close4h<e50_4h?'低于EMA50':'接近EMA50')+'。均线排列与收盘价位置分别评估。';
