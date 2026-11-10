@@ -760,11 +760,18 @@ function buildSupportResistanceProfile(candles,referencePrice,timeframe){
   const atrValues=tr.slice(-14),atr=atrValues.length?atrValues.reduce((a,b)=>a+b,0)/atrValues.length:NaN;
   const vols=valid.slice(-20).map(c=>c.volume).filter(v=>Number.isFinite(v)&&v>0);
   const avgVolume=vols.length?vols.reduce((a,b)=>a+b,0)/vols.length:NaN,lows=[],highs=[];
-  for(let i=2;i<valid.length-2;i++){
+  // 1小时保留5根K线拐点确认；4小时放宽为3根K线确认，避免较大周期有效拐点过少
+  const pivotBars=timeframe==='4小时'?1:2;
+  for(let i=pivotBars;i<valid.length-pivotBars;i++){
     const c=valid[i],future=valid.slice(i+1,Math.min(valid.length,i+7));
-    if(c.low<valid[i-1].low&&c.low<valid[i-2].low&&c.low<valid[i+1].low&&c.low<valid[i+2].low)
+    let isLocalLow=true,isLocalHigh=true;
+    for(let j=1;j<=pivotBars;j++){
+      if(!(c.low<valid[i-j].low&&c.low<valid[i+j].low))isLocalLow=false;
+      if(!(c.high>valid[i-j].high&&c.high>valid[i+j].high))isLocalHigh=false;
+    }
+    if(isLocalLow)
       lows.push({price:c.low,volume:c.volume,reaction:future.length?Math.max(0,(Math.max(...future.map(x=>x.high))-c.low)/c.low*100):0});
-    if(c.high>valid[i-1].high&&c.high>valid[i-2].high&&c.high>valid[i+1].high&&c.high>valid[i+2].high)
+    if(isLocalHigh)
       highs.push({price:c.high,volume:c.volume,reaction:future.length?Math.max(0,(c.high-Math.min(...future.map(x=>x.low)))/c.high*100):0});
   }
   const tolerance=Math.max(Number.isFinite(atr)?atr*.45:0,referencePrice*.001);
