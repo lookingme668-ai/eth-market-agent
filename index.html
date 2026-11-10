@@ -774,7 +774,7 @@ function buildSupportResistanceProfile(candles,referencePrice,timeframe){
     return groups.map(g=>{
       const n=g.points.length,reaction=g.points.reduce((s,x)=>s+x.reaction,0)/n;
       const vr=g.points.map(x=>Number.isFinite(x.volume)&&Number.isFinite(avgVolume)&&avgVolume>0?x.volume/avgVolume:1).reduce((a,b)=>a+b,0)/n;
-      const score=Math.round(Math.min(100,Math.min(40,15+(n-1)*12)+Math.min(30,reaction/2.5*30)+Math.min(30,vr/2*30)));
+      const touchScore=Math.min(70,10+(n-1)*12),reactionScore=Math.min(20,reaction/4*20),volumeScore=Math.min(10,vr/2*10);const score=Math.round(Math.min(100,touchScore+reactionScore+volumeScore));
       const width=Math.max(Number.isFinite(atr)?atr*.22:0,g.center*.0007);
       return {center:g.center,low:g.center-width,high:g.center+width,touches:n,reaction,volumeRatio:vr,score};
     }).sort((a,b)=>isSupport?b.center-a.center:a.center-b.center);
@@ -782,8 +782,8 @@ function buildSupportResistanceProfile(candles,referencePrice,timeframe){
   const s=zones(lows,true),r=zones(highs,false);
   return {timeframe,support:s.length?s[0]:null,resistance:r.length?r[0]:null,atr};
 }
-function formatZone(z){return z?'$'+z.low.toFixed(2)+' – $'+z.high.toFixed(2):'数据不足';}
-function zoneDetails(z){return z?'强度 '+z.score+'/100 · 局部触碰 '+z.touches+' 次 · 后续平均反应 '+z.reaction.toFixed(2)+'% · 成交量比 '+z.volumeRatio.toFixed(2)+'x':'尚未识别到有效区域';}
+function formatZone(z){return z?'$'+z.low.toFixed(2)+' – $'+z.high.toFixed(2):'暂无有效区域';}
+function zoneDetails(z){return z?'强度 '+z.score+'/100 · 局部触碰 '+z.touches+' 次 · 后续平均有利波动 '+z.reaction.toFixed(2)+'% · 成交量比 '+z.volumeRatio.toFixed(2)+'x':'当前周期未识别到符合条件的局部高低点；不代表该价位没有支撑或阻力';}
 function pivots(candles){
   const lows=[],highs=[];
   for(let i=2;i<candles.length-2;i++){
