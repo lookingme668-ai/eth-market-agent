@@ -224,6 +224,19 @@ canvas{height:280px}
 .backtest-table{width:100%;border-collapse:collapse;font-size:12px}.backtest-table th,.backtest-table td{padding:8px 5px;border-bottom:1px solid rgba(145,169,205,.15);text-align:right}
 .backtest-table th:first-child,.backtest-table td:first-child{text-align:left}.backtest-table th{color:var(--muted);font-weight:600}
 .backtest-foot{margin-top:10px;font-size:11px;line-height:1.7;color:var(--muted)}
+.live-prediction-section{margin:24px 0;padding:20px}
+.live-prediction-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}
+.live-prediction-stat{padding:10px;background:rgba(145,169,205,.07);border-radius:9px;min-width:0}
+.live-prediction-stat span{display:block;color:var(--muted);font-size:11px}
+.live-prediction-stat strong{display:block;font-size:18px;margin-top:3px;font-variant-numeric:tabular-nums}
+.live-prediction-list{display:grid;gap:8px;margin-top:12px}
+.live-prediction-item{display:grid;grid-template-columns:1fr auto;gap:8px;padding:11px;border:1px solid rgba(145,169,205,.18);border-radius:10px;background:rgba(6,13,25,.32)}
+.live-prediction-item strong{font-size:13px}
+.live-prediction-item small{display:block;color:var(--muted);line-height:1.6;margin-top:4px}
+.live-prediction-status{font-size:11px;white-space:nowrap;color:#cbd5e1}
+.live-prediction-note{font-size:11px;line-height:1.7;color:var(--muted);margin-top:12px}
+@media(max-width:760px){.live-prediction-section{padding:14px}.live-prediction-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.live-prediction-stat strong{font-size:16px}.live-prediction-item{grid-template-columns:1fr}}
+
 @media(max-width:760px){.backtest-section{padding:14px}.backtest-grid{grid-template-columns:1fr}.backtest-stats{gap:6px}.backtest-stat strong{font-size:16px}}
 
 .support-resistance-grid>.card{min-height:132px}
@@ -431,6 +444,14 @@ canvas{height:280px}
     <p class="small backtest-method">使用最近约60天已完成K线，前70%作为历史预热区间，后30%作为样本外验证区间。每个时点只用当时可获得的数据识别区域，后续K线只用于评估结果；触碰后观察未来12根1小时K线或6根4小时K线。</p>
     <div class="backtest-grid"><div class="backtest-panel" id="backtest1h"><div class="muted">1小时回测计算中…</div></div><div class="backtest-panel" id="backtest4h"><div class="muted">4小时回测计算中…</div></div></div>
     <div class="small backtest-note">成功率仅按已明确先触及有利或不利目标的样本计算；未确认与同一根K线双向触发单独列出，不计入成功率。回测不等于未来表现，也未扣除手续费与滑点。</div>
+  </section>
+
+  <section class="live-prediction-section card">
+    <h2 class="section">实时支撑阻力预测验证</h2>
+    <p class="small backtest-method">当实时ETH价格进入当前识别的支撑或阻力区域时，记录当时价格、区域范围、强度、ATR和时间。之后只使用触发时点之后已经完成的K线验证，1小时观察未来12根，4小时观察未来6根。记录保存在当前浏览器本地。</p>
+    <div class="live-prediction-summary" id="livePredictionSummary"><div class="muted">等待首次触碰事件…</div></div>
+    <div class="live-prediction-list" id="livePredictionList"><div class="muted">当前尚无实时预测记录。价格进入支撑或阻力区域后会自动建立记录。</div></div>
+    <div class="live-prediction-note">成功/失败目标按触发时区域中心上下各1倍ATR设定；同一根未来K线同时触及两侧目标记为双向。观察窗口结束仍未触及目标记为未确认。数据仅保存在此浏览器，不会上传服务器；清除浏览器站点数据会删除记录。此模块不自动下单，也不构成投资建议。</div>
   </section>
 
   <section class="analysis-layout">
@@ -861,6 +882,91 @@ function updateHistoricalBacktest(hourlyCandles,fourHourCandles){
   $('backtest1h').innerHTML=renderBacktestPanel(historicalBacktestCache.oneHour);$('backtest4h').innerHTML=renderBacktestPanel(historicalBacktestCache.fourHour);
 }
 
+const LIVE_PREDICTION_STORAGE_KEY='eth_sr_live_predictions_v1';
+function loadLivePredictionEvents(){
+  try{
+    const parsed=JSON.parse(localStorage.getItem(LIVE_PREDICTION_STORAGE_KEY)||'[]');
+    return Array.isArray(parsed)?parsed:[];
+  }catch(error){return [];}
+}
+function saveLivePredictionEvents(events){
+  try{localStorage.setItem(LIVE_PREDICTION_STORAGE_KEY,JSON.stringify(events.slice(-100)));return true;}
+  catch(error){return false;}
+}
+function updateLivePredictionTracker(profile1h,profile4h,price,closed1h,closed4h,nowSec){
+  let events=loadLivePredictionEvents();
+  const configs=[
+    {timeframe:'1小时',seconds:3600,horizon:12,profile:profile1h,candles:closed1h},
+    {timeframe:'4小时',seconds:14400,horizon:6,profile:profile4h,candles:closed4h}
+  ];
+  let changed=false;
+  for(const cfg of configs){
+    for(const side of ['support','resistance']){
+      const zone=cfg.profile[side];
+      if(!zone)continue;
+      // 只在实时价格进入区域时建立记录；每个周期、方向、K线桶最多记录一次
+      if(Number.isFinite(price)&&price>=zone.low&&price<=zone.high){
+        const bucketStart=Math.floor(nowSec/cfg.seconds)*cfg.seconds;
+        const exists=events.some(e=>e.timeframe===cfg.timeframe&&e.side===side&&e.bucketStart===bucketStart);
+        if(!exists&&Number.isFinite(cfg.profile.atr)&&cfg.profile.atr>0){
+          const anchor=zone.center,atr=cfg.profile.atr;
+          events.push({
+            id:cfg.timeframe+'_'+side+'_'+bucketStart,
+            timeframe:cfg.timeframe,side,bucketStart,createdAt:nowSec,
+            priceAtTouch:price,low:zone.low,high:zone.high,center:anchor,
+            score:zone.score,atr,horizon:cfg.horizon,
+            favorableTarget:side==='support'?anchor+atr:anchor-atr,
+            adverseTarget:side==='support'?anchor-atr:anchor+atr,
+            status:'观察中',observedBars:0,outcome:null
+          });
+          changed=true;
+        }
+      }
+    }
+    // 只评估触发K线之后的已完成K线，触发K线本身不参与结果判定
+    for(const event of events){
+      if(event.timeframe!==cfg.timeframe||event.status!=='观察中')continue;
+      const future=cfg.candles.filter(c=>c.time>=event.bucketStart+cfg.seconds).slice(0,event.horizon);
+      let outcome=null;
+      for(const candle of future){
+        const good=event.side==='support'?candle.high>=event.favorableTarget:candle.low<=event.favorableTarget;
+        const bad=event.side==='support'?candle.low<=event.adverseTarget:candle.high>=event.adverseTarget;
+        if(good&&bad){outcome='双向';break;}
+        if(good){outcome='成功';break;}
+        if(bad){outcome='失败';break;}
+      }
+      event.observedBars=future.length;
+      if(outcome){event.status=outcome;event.outcome=outcome;event.completedAt=future[Math.max(0,future.length-1)]?.time||null;changed=true;}
+      else if(future.length>=event.horizon){event.status='未确认';event.outcome='未确认';event.completedAt=future[event.horizon-1]?.time||null;changed=true;}
+    }
+  }
+  events=events.slice(-100);
+  if(changed)saveLivePredictionEvents(events);
+  renderLivePredictionEvents(events);
+}
+function renderLivePredictionEvents(events){
+  const summary=$('livePredictionSummary'),list=$('livePredictionList');
+  if(!summary||!list)return;
+  const success=events.filter(e=>e.status==='成功').length;
+  const failure=events.filter(e=>e.status==='失败').length;
+  const pending=events.filter(e=>e.status==='观察中').length;
+  const decided=success+failure;
+  const rate=decided?((success/decided)*100).toFixed(1)+'%':'—';
+  summary.innerHTML=[
+    ['记录总数',events.length],['观察中',pending],['已判定成功率',rate],['成功 / 失败',success+' / '+failure]
+  ].map(([label,value])=>'<div class="live-prediction-stat"><span>'+label+'</span><strong>'+value+'</strong></div>').join('');
+  if(!events.length){
+    list.innerHTML='<div class="muted">当前尚无实时预测记录。价格进入支撑或阻力区域后会自动建立记录。</div>';
+    return;
+  }
+  list.innerHTML=events.slice().reverse().slice(0,8).map(e=>{
+    const side=e.side==='support'?'支撑':'阻力';
+    const date=new Date(e.createdAt*1000).toLocaleString();
+    const status=e.status==='成功'?'成功':e.status==='失败'?'失败':e.status==='双向'?'双向':e.status==='未确认'?'未确认':'观察中 '+e.observedBars+'/'+e.horizon+'根';
+    return '<div class="live-prediction-item"><div><strong>'+e.timeframe+' '+side+' · '+fmt(e.low)+' – '+fmt(e.high)+'</strong><small>触发价格 '+fmt(e.priceAtTouch)+' · 强度 '+e.score+'/100 · ATR '+fmt(e.atr)+'<br>记录时间 '+date+' · 目标 '+fmt(e.favorableTarget)+' / '+fmt(e.adverseTarget)+'</small></div><span class="live-prediction-status">'+status+'</span></div>';
+  }).join('');
+}
+
 function zoneDetails(z){return z?'强度 '+z.score+'/100 · 局部触碰 '+z.touches+' 次 · 后续平均有利波动 '+z.reaction.toFixed(2)+'% · 成交量比 '+z.volumeRatio.toFixed(2)+'x':'当前周期未识别到符合条件的局部高低点；不代表该价位没有支撑或阻力';}
 function pivots(candles){
   const lows=[],highs=[];
@@ -1218,6 +1324,9 @@ const closes1hClosed=closedCandles1h.map(x=>x.close);
 if(closes1hClosed.length<250)throw new Error('1小时历史K线不足，暂时无法可靠计算EMA200、RSI和MACD');
 const close1hClosed=closes1hClosed[closes1hClosed.length-1];
 const priorClose1hClosed=closes1hClosed[closes1hClosed.length-2];
+updateLivePredictionTracker(
+  profile1h,profile4h,price,closedCandles1h,candles4h,Math.floor(Date.now()/1000)
+);
 const resistanceBreakout=trackBreakoutRetest(p.resistance,price,closedCandles1h);
 const supportBreakdown=trackSupportBreakdown(p.support,price,closedCandles1h);
 const supportBreakdownText=supportBreakdown.text;
@@ -1578,7 +1687,6 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
     $('resistance4h').textContent=formatZone(p.profile4h.resistance);
     $('support4hDetail').textContent=zoneDetails(p.profile4h.support);
     $('resistance4hDetail').textContent=zoneDetails(p.profile4h.resistance);
-    updateHistoricalBacktest(historicalHourly.filter(x=>x.time<hourBoundary),candles4h);
     updateHistoricalBacktest(historicalHourly.filter(x=>x.time<hourBoundary),candles4h);
     draw(closedCandles1h.slice(-168),emaSeries(closes1hClosed,200).slice(-168));
     draw4h(candles4h.slice(-180),liveCandle4h);
