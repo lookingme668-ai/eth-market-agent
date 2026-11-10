@@ -437,6 +437,7 @@ function formatLiveEmaDistances(price,entries){
   }).join('；')+'。';
 }
 let lastPrice=null;
+let refreshInFlight=false;
 
 async function getJSON(url){
   const r=await fetch(url,{headers:{'Accept':'application/json'}});
@@ -872,6 +873,9 @@ function draw4h(candles,liveCandle=null){
   function moneyOrNA(v){return Number.isFinite(v)?fmt(v):'暂不可计算';}
 
 async function refresh(){
+  // 防止手动刷新与30秒定时刷新重叠，避免并发请求导致旧数据覆盖新数据
+  if(refreshInFlight)return;
+  refreshInFlight=true;
   $('status').textContent='正在更新…';$('dot').className='dot';
   try{
     const [ticker,stats,raw,historicalHourly]=await Promise.all([
@@ -1511,6 +1515,8 @@ renderAnalysisSections(lines);
   }catch(e){
     $('dot').className='dot bad';$('status').textContent='连接失败：'+e.message;
     $('analysis').textContent='暂时无法取得行情。请检查网络、稍后重试，或确认 Coinbase API 在当前网络可访问。';
+  }finally{
+    refreshInFlight=false;
   }
 }
 $('refresh').addEventListener('click',refresh);
