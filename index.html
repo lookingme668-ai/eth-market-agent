@@ -693,6 +693,58 @@ function aggregate4h(hourly){
   if(state.phase==='retested')return {text:'价格已回踩锁定阻力附近且1小时收盘守住，等待后续收盘价突破回踩K线高点。'+locked,level:state.level,phase:state.phase};
   return {text:'突破、1小时收盘确认、回踩守住及再次向上突破均已完成，形成突破回踩确认。'+locked,level:state.level,phase:state.phase};
 }
+function trackSupportBreakdown(dynamicSupport,livePrice,closedCandles){
+  const storageKey='ethSupportBreakdown_v1';
+  const tolerance=0.003;
+  const latest=closedCandles.at(-1);
+  let state=null;
+  try{
+    const saved=localStorage.getItem(storageKey);
+    if(saved)state=JSON.parse(saved);
+  }catch(e){state=null;}
+  if(!(state&&Number.isFinite(state.level)&&Number.isFinite(state.lastProcessedTime)&&['waiting_close','confirmed','retested','confirmed_retest','reclaimed'].includes(state.phase)&&(!['retested','confirmed_retest'].includes(state.phase)||Number.isFinite(state.retestLow))))state=null;
+  const save=()=>{
+    try{
+      if(state)localStorage.setItem(storageKey,JSON.stringify(state));
+      else localStorage.removeItem(storageKey);
+    }catch(e){}
+  };
+  if(state){
+    for(const candle of closedCandles.filter(c=>c.time>state.lastProcessedTime)){
+      state.lastProcessedTime=candle.time;
+      if(state.phase==='waiting_close'){
+        if(candle.close<state.level){state.phase='confirmed';state.confirmedTime=candle.time;}
+        else{state=null;break;}
+      }else if(state.phase==='confirmed'){
+        if(candle.close>=state.level){state.phase='reclaimed';state.reclaimedTime=candle.time;break;}
+        if(candle.high>=state.level*(1-tolerance)&&candle.high<=state.level*(1+tolerance)&&candle.low<=state.level&&candle.close<state.level){
+          state.phase='retested';state.retestLow=candle.low;state.retestTime=candle.time;
+        }
+      }else if(state.phase==='retested'){
+        if(candle.close>=state.level){state.phase='reclaimed';state.reclaimedTime=candle.time;break;}
+        if(candle.close<state.retestLow){state.phase='confirmed_retest';state.confirmedRetestTime=candle.time;}
+        else if(candle.high>=state.level*(1-tolerance)&&candle.high<=state.level*(1+tolerance)&&candle.low<=state.level&&candle.close<state.level){
+          state.retestLow=candle.low;state.retestTime=candle.time;
+        }
+      }else if(state.phase==='confirmed_retest'&&candle.close>=state.level){
+        state.phase='reclaimed';state.reclaimedTime=candle.time;break;
+      }
+    }
+  }
+  if(state&&state.phase==='reclaimed'&&Number.isFinite(livePrice)&&livePrice>=state.level)state=null;
+  if(!state&&Number.isFinite(dynamicSupport)&&Number.isFinite(livePrice)&&livePrice<dynamicSupport&&latest){
+    state={level:dynamicSupport,phase:'waiting_close',breakdownStartTime:Date.now(),lastProcessedTime:latest.time};
+  }
+  save();
+  if(!Number.isFinite(dynamicSupport))return {text:'动态支撑数据不足，暂无法判断跌破状态。',level:null,phase:'unavailable'};
+  if(!state)return {text:'实时价格仍在动态支撑上方，尚未形成初步跌破。',level:dynamicSupport,phase:'none'};
+  const locked='本次跟踪支撑位：'+fmt(state.level)+'（跌破时锁定，不随动态支撑刷新而改变）。';
+  if(state.phase==='waiting_close')return {text:'实时价格已跌破锁定支撑，属于初步下破；等待1小时K线收盘确认。'+locked,level:state.level,phase:state.phase};
+  if(state.phase==='confirmed')return {text:'最近已完成1小时K线收盘跌破锁定支撑，破位初步确认；观察反弹是否回踩该位并受阻。'+locked,level:state.level,phase:state.phase};
+  if(state.phase==='retested')return {text:'价格已反弹回踩锁定支撑附近，但1小时收盘仍在其下方；等待后续收盘价跌破回踩K线低点。'+locked,level:state.level,phase:state.phase};
+  if(state.phase==='confirmed_retest')return {text:'支撑跌破、1小时收盘确认、反弹回踩受阻及再次向下破位均已完成，破位延续得到确认。'+locked,level:state.level,phase:state.phase};
+  return {text:'价格已通过1小时收盘重新收复此前跌破的支撑位，原破位信号失效。'+locked,level:state.level,phase:state.phase};
+}
 function pivots(candles){
   const lows=[],highs=[];
   for(let i=2;i<candles.length-2;i++){
@@ -1046,6 +1098,8 @@ if(closes1hClosed.length<250)throw new Error('1小时历史K线不足，暂时�
 const close1hClosed=closes1hClosed[closes1hClosed.length-1];
 const priorClose1hClosed=closes1hClosed[closes1hClosed.length-2];
 const resistanceBreakout=trackBreakoutRetest(p.resistance,price,closedCandles1h);
+const supportBreakdown=trackSupportBreakdown(p.support,price,closedCandles1h);
+const supportBreakdownText=supportBreakdown.text;
 const resistanceBreakoutText=resistanceBreakout.text;
 const e20_1hClosed=ema(closes1hClosed,20);
 const e50_1hClosed=ema(closes1hClosed,50);
@@ -1455,7 +1509,7 @@ lines.push(
   '多头情景：价格站稳 EMA20，并突破动态阻力，且成交量配合。\n'+
   '空头情景：价格跌破1小时EMA20与动态支撑，反弹无法收复时，下行风险增加。\n'+
   '空头情景状态：'+(!Number.isFinite(price)||!Number.isFinite(e20_1hClosed)||!Number.isFinite(p.support)?'数据不足，暂无法判断。':price<e20_1hClosed&&price<p.support?'价格已低于1小时EMA20与动态支撑；反弹能否收复仍待确认，空头情景部分满足。':price<e20_1hClosed?'价格已低于1小时EMA20，但尚未同时跌破动态支撑，空头情景尚未完整满足。':price<p.support?'价格已低于动态支撑，但尚未跌破1小时EMA20，空头情景尚未完整满足。':'价格尚未同时跌破1小时EMA20与动态支撑，空头情景暂未触发。')+'\n'+
-  '阻力突破确认：'+resistanceBreakoutText+'\n'+
+  '阻力突破确认：'+resistanceBreakoutText+'\n'+  '支撑跌破与回踩确认：'+supportBreakdownText+'\n'+
   '风险控制：单一指标不构成交易信号；关注收盘确认、波动幅度和仓位风险。'
 );
 
@@ -1519,6 +1573,7 @@ renderAnalysisSections(lines);
       else a.push('上方动态阻力参考：'+fmt(p.resistance)+'（距离现价 '+resistanceDistance.toFixed(3)+'%）。');
     }
     if(Number.isFinite(p.support)){
+      a.push(supportBreakdownText);
       const supportDistance=(price-p.support)/price*100;
       if(price<p.support)a.push('价格低于近期局部低点支撑参考 '+fmt(p.support)+'（现价已低于该位 '+Math.abs(supportDistance).toFixed(3)+'%）；需留意破位风险。');
       else a.push('下方动态支撑参考：'+fmt(p.support)+'（距离现价 '+supportDistance.toFixed(3)+'%）。');
