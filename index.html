@@ -841,10 +841,13 @@ function buildSupportResistanceProfile(candles,referencePrice,timeframe){
 function formatZone(z){return z?'$'+z.low.toFixed(2)+' – $'+z.high.toFixed(2):'暂无有效区域';}
 
 let historicalBacktestCache=null;
+// 回测成本假设：单边手续费与单边滑点；可按实际账户费率调整
+const BACKTEST_FEE_PER_SIDE_PCT=0.10;
+const BACKTEST_SLIPPAGE_PER_SIDE_PCT=0.05;
 function runSupportResistanceBacktest(candles,timeframe){
   const horizon=timeframe==='1小时'?12:6,events=[],lastEvent={support:null,resistance:null};
-  // 前70%仅提供历史上下文；只统计后30%样本外区间内产生的触碰事件
   const testStart=Math.max(34,Math.floor(candles.length*.7));
+  const roundTripCostPct=2*(BACKTEST_FEE_PER_SIDE_PCT+BACKTEST_SLIPPAGE_PER_SIDE_PCT);
   for(let i=testStart;i<candles.length-horizon;i++){
     const history=candles.slice(0,i),profile=buildSupportResistanceProfile(history,candles[i-1].close,timeframe);
     const current=candles[i],atr=profile.atr;if(!Number.isFinite(atr)||atr<=0)continue;
@@ -853,13 +856,26 @@ function runSupportResistanceBacktest(candles,timeframe){
       const previous=lastEvent[side],sameZone=previous&&Math.abs(previous.center-zone.center)<=Math.max(atr*.6,zone.center*.001);
       if(sameZone&&i-previous.index<=6)continue;
       lastEvent[side]={center:zone.center,index:i};
-      const anchor=zone.center,favorable=side==='support'?anchor+atr:anchor-atr,adverse=side==='support'?anchor-atr:anchor+atr;
-      let outcome='unresolved';
-      for(let j=i+1;j<Math.min(candles.length,i+1+horizon);j++){
-        const future=candles[j],hitGood=side==='support'?future.high>=favorable:future.low<=favorable,hitBad=side==='support'?future.low<=adverse:future.high>=adverse;
-        if(hitGood&&hitBad){outcome='ambiguous';break;}if(hitGood){outcome='success';break;}if(hitBad){outcome='failure';break;}
+      const anchor=zone.center,direction=side==='support'?1:-1;
+      const favorable=side==='support'?anchor+atr:anchor-atr,adverse=side==='support'?anchor-atr:anchor+atr;
+      const future=candles.slice(i+1,i+1+horizon);
+      let outcome='unresolved',exitPrice=future.at(-1)?.close??anchor,exitReason='观察窗口结束';
+      let maxHigh=-Infinity,minLow=Infinity;
+      for(const candle of future){
+        maxHigh=Math.max(maxHigh,candle.high);minLow=Math.min(minLow,candle.low);
+        const hitGood=side==='support'?candle.high>=favorable:candle.low<=favorable;
+        const hitBad=side==='support'?candle.low<=adverse:candle.high>=adverse;
+        if(hitGood&&hitBad){outcome='ambiguous';exitReason='同一根K线双向触发';break;}
+        if(hitGood){outcome='success';exitPrice=favorable;exitReason='触及有利目标';break;}
+        if(hitBad){outcome='failure';exitPrice=adverse;exitReason='触及不利目标';break;}
       }
-      events.push({side,score:zone.score,outcome,time:candles[i].time});
+      const mfe=Number.isFinite(maxHigh)&&Number.isFinite(minLow)
+        ?(side==='support'?(maxHigh-anchor)/anchor*100:(anchor-minLow)/anchor*100):NaN;
+      const mae=Number.isFinite(maxHigh)&&Number.isFinite(minLow)
+        ?(side==='support'?(anchor-minLow)/anchor*100:(maxHigh-anchor)/anchor*100):NaN;
+      const grossReturnPct=(exitPrice-anchor)/anchor*100*direction;
+      const netReturnPct=outcome==='ambiguous'?NaN:grossReturnPct-roundTripCostPct;
+      events.push({side,score:zone.score,outcome,time:candles[i].time,entry:anchor,atr,mfe,mae,grossReturnPct,netReturnPct,exitReason});
     }
   }
   const summarize=list=>({total:list.length,success:list.filter(x=>x.outcome==='success').length,failure:list.filter(x=>x.outcome==='failure').length,ambiguous:list.filter(x=>x.outcome==='ambiguous').length,unresolved:list.filter(x=>x.outcome==='unresolved').length});
@@ -867,14 +883,28 @@ function runSupportResistanceBacktest(candles,timeframe){
     const group=events.filter(x=>x.score>=bin.min&&x.score<=bin.max),decided=group.filter(x=>x.outcome==='success'||x.outcome==='failure'),wins=decided.filter(x=>x.outcome==='success').length;
     return {label:bin.label,total:group.length,decided:decided.length,rate:decided.length?wins/decided.length*100:NaN};
   });
-  return {timeframe,horizon,events,all:summarize(events),support:summarize(events.filter(x=>x.side==='support')),resistance:summarize(events.filter(x=>x.side==='resistance')),bins,from:candles[testStart]?.time,to:candles.at(-1)?.time,count:candles.length,testCount:Math.max(0,candles.length-testStart-horizon)};
+  const excursionEvents=events.filter(x=>Number.isFinite(x.mfe)&&Number.isFinite(x.mae));
+  const tradableEvents=events.filter(x=>Number.isFinite(x.netReturnPct));
+  const avg=list=>list.length?list.reduce((sum,x)=>sum+x,0)/list.length:NaN;
+  const avgMfe=avg(excursionEvents.map(x=>x.mfe)),avgMae=avg(excursionEvents.map(x=>x.mae));
+  const avgNet=avg(tradableEvents.map(x=>x.netReturnPct));
+  const grossWins=tradableEvents.filter(x=>x.netReturnPct>0).reduce((sum,x)=>sum+x.netReturnPct,0);
+  const grossLosses=Math.abs(tradableEvents.filter(x=>x.netReturnPct<0).reduce((sum,x)=>sum+x.netReturnPct,0));
+  const profitFactor=grossLosses>0?grossWins/grossLosses:grossWins>0?Infinity:NaN;
+  return {timeframe,horizon,events,all:summarize(events),support:summarize(events.filter(x=>x.side==='support')),resistance:summarize(events.filter(x=>x.side==='resistance')),bins,
+    metrics:{avgMfe,avgMae,rr:avgMae>0?avgMfe/avgMae:NaN,avgNet,profitFactor,metricCount:tradableEvents.length,excursionCount:excursionEvents.length,roundTripCostPct},
+    from:candles[testStart]?.time,to:candles.at(-1)?.time,count:candles.length,testCount:Math.max(0,candles.length-testStart-horizon)};
 }
 function renderBacktestPanel(result){
   const s=result.all,decided=s.success+s.failure,rate=decided?s.success/decided*100:NaN,rateText=Number.isFinite(rate)?rate.toFixed(1)+'%':'样本不足';
   const detailRows=[['支撑',result.support],['阻力',result.resistance]].map(([label,x])=>'<tr><td>'+label+'</td><td>'+x.total+'</td><td>'+x.success+'</td><td>'+x.failure+'</td><td>'+x.ambiguous+'</td><td>'+x.unresolved+'</td></tr>').join('');
   const scoreRows=result.bins.map(x=>'<tr><td>'+x.label+'</td><td>'+x.total+'</td><td>'+x.decided+'</td><td>'+(Number.isFinite(x.rate)?x.rate.toFixed(1)+'%':'—')+'</td></tr>').join('');
   const from=result.from?new Date(result.from*1000).toLocaleDateString():'—',to=result.to?new Date(result.to*1000).toLocaleDateString():'—';
-  return '<div class="backtest-title">'+result.timeframe+' · 样本外 '+result.testCount+' 根K线</div><div class="backtest-stats"><div class="backtest-stat"><span>已判定成功率</span><strong>'+rateText+'</strong></div><div class="backtest-stat"><span>有效判定样本</span><strong>'+decided+'</strong></div><div class="backtest-stat"><span>触碰事件总数</span><strong>'+s.total+'</strong></div></div><table class="backtest-table"><thead><tr><th>区域</th><th>事件</th><th>成功</th><th>失败</th><th>双向</th><th>未确认</th></tr></thead><tbody>'+detailRows+'</tbody></table><div class="backtest-title" style="margin-top:15px">按强度分组</div><table class="backtest-table"><thead><tr><th>强度</th><th>事件数</th><th>已判定</th><th>成功率</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="backtest-foot">测试范围：'+from+' 至 '+to+'；前70%作为历史预热，后30%作为样本外测试；触碰后观察 '+result.horizon+' 根同周期K线。成功率分母仅含成功与失败。</div>';
+  const m=result.metrics||{};
+  const metricValue=(v,suffix='%')=>Number.isFinite(v)?v.toFixed(2)+suffix:'—';
+  const pf=Number.isFinite(m.profitFactor)?m.profitFactor.toFixed(2):m.profitFactor===Infinity?'∞':'—';
+  const metricsHtml='<div class="backtest-title" style="margin-top:15px">收益质量与交易成本</div><div class="backtest-stats"><div class="backtest-stat"><span>平均有利波动</span><strong>'+metricValue(m.avgMfe)+'</strong></div><div class="backtest-stat"><span>平均不利波动</span><strong>'+metricValue(m.avgMae)+'</strong></div><div class="backtest-stat"><span>平均波动盈亏比</span><strong>'+(Number.isFinite(m.rr)?m.rr.toFixed(2)+' : 1':'—')+'</strong></div><div class="backtest-stat"><span>平均净收益 / 事件</span><strong>'+metricValue(m.avgNet)+'</strong></div><div class="backtest-stat"><span>净收益盈利因子</span><strong>'+pf+'</strong></div><div class="backtest-stat"><span>净收益样本</span><strong>'+(m.metricCount??0)+'</strong></div></div>';
+  return '<div class="backtest-title">'+result.timeframe+' · 样本外 '+result.testCount+' 根K线</div><div class="backtest-stats"><div class="backtest-stat"><span>已判定成功率</span><strong>'+rateText+'</strong></div><div class="backtest-stat"><span>有效判定样本</span><strong>'+decided+'</strong></div><div class="backtest-stat"><span>触碰事件总数</span><strong>'+s.total+'</strong></div></div><table class="backtest-table"><thead><tr><th>区域</th><th>事件</th><th>成功</th><th>失败</th><th>双向</th><th>未确认</th></tr></thead><tbody>'+detailRows+'</tbody></table>'+metricsHtml+'<div class="backtest-title" style="margin-top:15px">按强度分组</div><table class="backtest-table"><thead><tr><th>强度</th><th>事件数</th><th>已判定</th><th>成功率</th></tr></thead><tbody>'+scoreRows+'</tbody></table><div class="backtest-foot">测试范围：'+from+' 至 '+to+'；前70%作为历史预热，后30%作为样本外测试；触碰后观察 '+result.horizon+' 根同周期K线。成功率分母仅含成功与失败。平均有利/不利波动按触碰后的完整观察窗口计算；净收益按触碰区域中心入场、1 ATR目标/止损优先退出，未触及目标则按观察窗口末收盘价退出；同K线双向触发不计入净收益。成本假设：单边手续费 '+BACKTEST_FEE_PER_SIDE_PCT.toFixed(2)+'% + 单边滑点 '+BACKTEST_SLIPPAGE_PER_SIDE_PCT.toFixed(2)+'%，往返合计 '+(m.roundTripCostPct||0).toFixed(2)+'%。此为可调整模拟假设，不代表实际成交成本。</div>';
 }
 function updateHistoricalBacktest(hourlyCandles,fourHourCandles){
   const key=(hourlyCandles.at(-1)?.time||0)+'_'+(fourHourCandles.at(-1)?.time||0);
