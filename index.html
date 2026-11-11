@@ -989,15 +989,15 @@ function updateHistoricalBacktest(hourlyCandles,fourHourCandles){
   if(!historicalBacktestCache||historicalBacktestCache.key!==key)historicalBacktestCache={key,oneHour:runSupportResistanceBacktest(hourlyCandles,'1小时'),fourHour:runSupportResistanceBacktest(fourHourCandles,'4小时')};
   $('backtest1h').innerHTML=renderBacktestPanel(historicalBacktestCache.oneHour);$('backtest4h').innerHTML=renderBacktestPanel(historicalBacktestCache.fourHour);
 }
-const LIVE_PREDICTION_STORAGE_KEY=activeAsset.toLowerCase()+'_sr_live_predictions_v1';
+const livePredictionStorageKey=()=>activeAsset.toLowerCase()+'_sr_live_predictions_v1';
 function loadLivePredictionEvents(){
   try{
-    const parsed=JSON.parse(localStorage.getItem(LIVE_PREDICTION_STORAGE_KEY)||'[]');
+    const parsed=JSON.parse(localStorage.getItem(livePredictionStorageKey())||'[]');
     return Array.isArray(parsed)?parsed:[];
   }catch(error){return [];}
 }
 function saveLivePredictionEvents(events){
-  try{localStorage.setItem(LIVE_PREDICTION_STORAGE_KEY,JSON.stringify(events.slice(-100)));return true;}
+  try{localStorage.setItem(livePredictionStorageKey(),JSON.stringify(events.slice(-100)));return true;}
   catch(error){return false;}
 }
 function updateLivePredictionTracker(profile1h,profile4h,price,closed1h,closed4h,nowSec){
