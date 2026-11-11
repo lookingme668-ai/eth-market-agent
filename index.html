@@ -484,7 +484,7 @@ function applyAssetUI(){
   const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
   let node;
   while((node=walker.nextNode())){
-    if(node.parentElement&&['SCRIPT','STYLE'].includes(node.parentElement.tagName))continue;
+    if(node.parentElement&&(['SCRIPT','STYLE'].includes(node.parentElement.tagName)||node.parentElement.closest('.asset-switch')))continue;
     node.nodeValue=node.nodeValue.replace(/\b(?:ETH|BTC)\b/g,activeAsset);
   }
   $('assetETH').classList.toggle('active',activeAsset==='ETH');
