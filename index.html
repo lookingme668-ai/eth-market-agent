@@ -11,6 +11,7 @@
 main{max-width:1120px;margin:auto;padding:28px 18px 48px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}
 h1{font-size:25px;margin:0 0 4px}.sub,.muted{color:var(--muted);font-size:13px}
 button{background:#263b61;color:white;border:1px solid #3b5685;padding:10px 14px;border-radius:10px;cursor:pointer}button:hover{background:#304b78}
+.asset-switch{display:flex;gap:4px;padding:3px;border:1px solid var(--line);border-radius:12px;background:#0d1527}.asset-button{padding:7px 13px;border:0;background:transparent;color:var(--muted);font-weight:700}.asset-button:hover{background:#1b2942}.asset-button.active{background:#36598e;color:#fff;box-shadow:0 1px 5px #0006}
 .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:22px 0}
 .trend-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:-8px 0 22px}
 .trend-card .v{font-size:17px;line-height:1.4;margin-top:6px}
@@ -364,6 +365,7 @@ canvas{height:280px}
   <div class="top">
     <div><h1>ETH AI 行情分析台</h1><div class="sub">免费版 · Coinbase ETH-USD 公共行情 · 本地浏览器计算指标</div></div>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="asset-switch" role="group" aria-label="选择分析币种"><button type="button" id="assetETH" class="asset-button">ETH</button><button type="button" id="assetBTC" class="asset-button">BTC</button></div>
       <div class="status"><span id="dot" class="dot"></span><span id="status" class="muted">正在连接行情…</span></div>
       <button id="refresh">立即刷新</button>
     </div>
@@ -474,6 +476,41 @@ canvas{height:280px}
 <script>
 const API='https://api.exchange.coinbase.com';
 const $=id=>document.getElementById(id);
+let activeAsset='ETH';
+let assetRequestVersion=0;
+const productId=()=>activeAsset+'-USD';
+function applyAssetUI(){
+  document.title=activeAsset+' AI 行情分析台';
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  let node;
+  while((node=walker.nextNode())){
+    if(node.parentElement&&['SCRIPT','STYLE'].includes(node.parentElement.tagName))continue;
+    node.nodeValue=node.nodeValue.replace(/\b(?:ETH|BTC)\b/g,activeAsset);
+  }
+  $('assetETH').classList.toggle('active',activeAsset==='ETH');
+  $('assetBTC').classList.toggle('active',activeAsset==='BTC');
+  $('assetETH').setAttribute('aria-pressed',String(activeAsset==='ETH'));
+  $('assetBTC').setAttribute('aria-pressed',String(activeAsset==='BTC'));
+}
+function switchAsset(asset){
+  if(!['ETH','BTC'].includes(asset)||asset===activeAsset)return;
+  activeAsset=asset;
+  try{localStorage.setItem('eth_market_active_asset_v1',activeAsset);}catch(e){}
+  assetRequestVersion++;
+  refreshInFlight=false;
+  historicalHourlyCache=null;
+  historicalHourlyPromise=null;
+  historicalBacktestCache=null;
+  lastPrice=null;
+  applyAssetUI();
+  $('status').textContent='正在连接'+activeAsset+'行情…';
+  $('dot').className='dot';
+  refresh();
+}
+$('assetETH').addEventListener('click',()=>switchAsset('ETH'));
+$('assetBTC').addEventListener('click',()=>switchAsset('BTC'));
+try{const savedAsset=localStorage.getItem('eth_market_active_asset_v1');if(savedAsset==='BTC'||savedAsset==='ETH')activeAsset=savedAsset;}catch(e){}
+
 const fmt=n=>Number.isFinite(n)?'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
 const pct=n=>(n>=0?'+':'')+n.toFixed(2)+'%';
 function formatEma200Context(period,closedClose,ema200,livePrice){
@@ -482,7 +519,7 @@ function formatEma200Context(period,closedClose,ema200,livePrice){
   const closedPosition=closedClose>ema200?'高于':closedClose<ema200?'低于':'接近';
   const livePosition=livePrice>ema200?'高于':livePrice<ema200?'低于':'接近';
   const distance=(livePrice/ema200-1)*100;
-  return '最近已完成'+period+'K线收盘价'+closedPosition+'EMA200；实时ETH价格'+livePosition+
+  return '最近已完成'+period+'K线收盘价'+closedPosition+'EMA200；实时'+activeAsset+'价格'+livePosition+
     'EMA200（'+fmt(ema200)+'），'+(distance>=0?'高于':'低于')+'该均线'+Math.abs(distance).toFixed(2)+'%。';
 }
 function formatLiveEmaDistances(price,entries){
@@ -509,7 +546,7 @@ async function getHistoricalHourlyCandles(days=60){
     const nowSec=Math.floor(Date.now()/1000);
     const endSec=Math.floor(nowSec/3600)*3600;
     const startSec=endSec-48*3600;
-    const url=API+'/products/ETH-USD/candles?granularity=3600&start='
+    const url=API+'/products/'+productId()+'/candles?granularity=3600&start='
       +encodeURIComponent(new Date(startSec*1000).toISOString())
       +'&end='
       +encodeURIComponent(new Date(endSec*1000).toISOString());
@@ -533,7 +570,7 @@ async function getHistoricalHourlyCandles(days=60){
     for(let from=startSec;from<endSec;){
       const to=Math.min(from+chunkSeconds,endSec);
 
-      const url=API+'/products/ETH-USD/candles?granularity=3600&start='
+      const url=API+'/products/'+productId()+'/candles?granularity=3600&start='
         +encodeURIComponent(new Date(from*1000).toISOString())
         +'&end='
         +encodeURIComponent(new Date(to*1000).toISOString());
@@ -693,7 +730,7 @@ function aggregate4h(hourly){
     }));
 }
   function trackBreakoutRetest(dynamicResistance,livePrice,closedCandles){
-  const storageKey='ethBreakoutRetest_v1';
+  const storageKey=activeAsset.toLowerCase()+'BreakoutRetest_v1';
   const tolerance=0.003;
   const latest=closedCandles.at(-1);
   let state=null;
@@ -750,7 +787,7 @@ function aggregate4h(hourly){
   return {text:'突破、1小时收盘确认、回踩守住及再次向上突破均已完成，形成突破回踩确认。'+locked,level:state.level,phase:state.phase};
 }
 function trackSupportBreakdown(dynamicSupport,livePrice,closedCandles){
-  const storageKey='ethSupportBreakdown_v1';
+  const storageKey=activeAsset.toLowerCase()+'SupportBreakdown_v1';
   const tolerance=0.003;
   const latest=closedCandles.at(-1);
   let state=null;
@@ -952,7 +989,7 @@ function updateHistoricalBacktest(hourlyCandles,fourHourCandles){
   if(!historicalBacktestCache||historicalBacktestCache.key!==key)historicalBacktestCache={key,oneHour:runSupportResistanceBacktest(hourlyCandles,'1小时'),fourHour:runSupportResistanceBacktest(fourHourCandles,'4小时')};
   $('backtest1h').innerHTML=renderBacktestPanel(historicalBacktestCache.oneHour);$('backtest4h').innerHTML=renderBacktestPanel(historicalBacktestCache.fourHour);
 }
-const LIVE_PREDICTION_STORAGE_KEY='eth_sr_live_predictions_v1';
+const LIVE_PREDICTION_STORAGE_KEY=activeAsset.toLowerCase()+'_sr_live_predictions_v1';
 function loadLivePredictionEvents(){
   try{
     const parsed=JSON.parse(localStorage.getItem(LIVE_PREDICTION_STORAGE_KEY)||'[]');
@@ -1227,15 +1264,17 @@ async function refresh(){
   // 防止手动刷新与30秒定时刷新重叠，避免并发请求导致旧数据覆盖新数据
   if(refreshInFlight)return;
   refreshInFlight=true;
+  const requestVersion=assetRequestVersion;
   $('status').textContent='正在更新…';$('dot').className='dot';
   try{
     const [ticker,stats,raw,historicalHourly]=await Promise.all([
-  getJSON(API+'/products/ETH-USD/ticker'),
-  getJSON(API+'/products/ETH-USD/stats'),
-  getJSON(API+'/products/ETH-USD/candles?granularity=3600'),
+  getJSON(API+'/products/'+productId()+'/ticker'),
+  getJSON(API+'/products/'+productId()+'/stats'),
+  getJSON(API+'/products/'+productId()+'/candles?granularity=3600'),
   getHistoricalHourlyCandles(60)
 ]);
 
+if(requestVersion!==assetRequestVersion)return;
 const price=Number(ticker.price),open=Number(stats.open),vol=Number(stats.volume);
 const high=Number(stats.high),low=Number(stats.low);
 const change=Number.isFinite(price)&&Number.isFinite(open)&&open>0?(price/open-1)*100:NaN;
@@ -1755,7 +1794,7 @@ if(livePriceBelowAllThree&&(closedCandleTrend==='强势偏多'||closedCandleTren
     $('rsi4h').textContent=Number.isFinite(rv4h)?rv4h.toFixed(1):'暂不可计算';
     $('macd4h').textContent=Number.isFinite(m4h.hist)?(m4h.hist>=0?'柱体为正':'柱体为负')+'（'+m4h.hist.toFixed(3)+'）':'暂不可计算';
     $('trend4hDisplay').textContent=trendLabel;
-    $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' ETH':'—';
+    $('volume').textContent=Number.isFinite(vol)?vol.toLocaleString('en-US',{maximumFractionDigits:0})+' '+activeAsset:'—';
     $('support').textContent=formatZone(p.profile1h.support);$('resistance').textContent=formatZone(p.profile1h.resistance);
     $('supportDetail').textContent=zoneDetails(p.profile1h.support);
     $('resistanceDetail').textContent=zoneDetails(p.profile1h.resistance);
@@ -1902,13 +1941,15 @@ renderAnalysisSections(lines);
     $('dot').className='dot ok';$('status').textContent='行情已连接 · 每30秒自动刷新';
     lastPrice=price;
   }catch(e){
+    if(requestVersion!==assetRequestVersion)return;
     $('dot').className='dot bad';$('status').textContent='连接失败：'+e.message;
     $('analysis').textContent='暂时无法取得行情。请检查网络、稍后重试，或确认 Coinbase API 在当前网络可访问。';
   }finally{
-    refreshInFlight=false;
+    if(requestVersion===assetRequestVersion)refreshInFlight=false;
   }
 }
 $('refresh').addEventListener('click',refresh);
+applyAssetUI();
 refresh();setInterval(refresh,30000);
 </script>
 </body></html>
